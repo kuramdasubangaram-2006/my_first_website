@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Admin sign in | OSINT Link Intelligence Dashboard{% endblock %}
+{% block body %}
+<main class="auth-shell"><section class="auth-panel"><p class="eyebrow">OSINT LAB / ADMIN</p><h1>Link intelligence,<br><em>with consent.</em></h1><p class="muted">A contained educational dashboard for understanding ordinary web request data and explicit browser permissions.</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="password">Administrator password</label><input id="password" name="password" type="password" autocomplete="current-password" required><button class="button button-primary" type="submit">Open dashboard <span>→</span></button>{% if error %}<p class="error">{{ error }}</p>{% endif %}</form><p class="fine-print">Configure <code>ADMIN_PASSWORD_HASH</code> before deployment.</p></section><aside class="auth-aside"><span class="signal-dot"></span><p>DEMO ENVIRONMENT</p><strong>Observe. Explain.<br>Never overreach.</strong></aside></main>
+{% endblock %}

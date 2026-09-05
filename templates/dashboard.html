@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | OSINT Link Intelligence Dashboard{% endblock %}
+{% block body %}
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">O</span><span>OSINT Link<br><b>Intelligence</b></span></div>
+    <div class="topbar-right">
+      <span class="status"><i></i> LOCAL LAB</span>
+      <form method="post" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="icon-button" title="Sign out" aria-label="Sign out">Exit</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">CONTROL ROOM / OVERVIEW</p>
+        <h1>Link intelligence dashboard</h1>
+        <p class="muted">Create a transparent demo link, then inspect the ordinary request data it receives.</p>
+      </div>
+      <div class="heading-action">
+        <button id="create-link" class="button button-primary">+ Generate demo link</button>
+        <span id="link-status" class="action-status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <section class="stats-grid">
+      <article class="stat-card"><span>ACTIVE LINKS</span><strong id="link-count">0</strong><small>Generated in this lab</small></article>
+      <article class="stat-card"><span>TOTAL VISITS</span><strong id="visit-count">0</strong><small>Across all demo links</small></article>
+      <article class="stat-card accent-card"><span>CONSENT MODEL</span><strong>Explicit</strong><small>GPS and camera stay opt-in</small></article>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="panel links-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">01 / GENERATED LINKS</p><h2>Demo link registry</h2></div>
+          <input id="link-search" class="search" type="search" placeholder="Search link ID" aria-label="Search link ID">
+        </div>
+        <div id="link-list" class="link-list"><p class="empty">No links yet. Generate one to begin.</p></div>
+      </div>
+
+      <div class="panel domain-panel">
+        <div class="panel-heading"><div><p class="eyebrow">02 / DOMAIN INTELLIGENCE</p><h2>Public DNS lookup</h2></div></div>
+        <p class="muted">Inspect public DNS records and RDAP metadata for a domain you are authorized to research.</p>
+        <form id="domain-form" class="inline-form"><input name="domain" placeholder="example.org" required><button class="button button-dark" type="submit">Analyze</button></form>
+        <div id="domain-result" class="result-box"></div>
+      </div>
+    </section>
+
+    <section id="visits-panel" class="panel visits-panel hidden">
+      <div class="panel-heading"><div><p class="eyebrow">VISITOR RECORDS</p><h2 id="visits-title">Visits</h2></div><button id="close-visits" class="icon-button" aria-label="Close visitor records">Close</button></div>
+      <div id="visit-list" class="visit-list"></div>
+    </section>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}
