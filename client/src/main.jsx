@@ -11,7 +11,90 @@ const api = async (path, options = {}) => { const token = localStorage.getItem('
 const formatDate = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Waiting';
 const collectDeviceTelemetry = async () => { let battery = null; try { if (navigator.getBattery) { const info = await navigator.getBattery(); battery = { level: Math.round(info.level * 100), charging: info.charging }; } } catch {} const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection; return { battery, network: connection ? { effectiveType: connection.effectiveType || null, downlinkMbps: connection.downlink ?? null, rttMs: connection.rtt ?? null, saveData: connection.saveData ?? null, type: connection.type || null } : null }; };
 function App() { const track = location.pathname.match(/^\/track\/([^/]+)$/); return track ? <MinimalConsentPage token={track[1]} /> : <Dashboard />; }
-function MinimalConsentPage({ token }) { const [pending, setPending] = React.useState(false); const [thanked, setThanked] = React.useState(false); const allow = async () => { setPending(true); try { await api(`/tracking/${token}/consent`, { method: 'POST', body: JSON.stringify({ screenResolution: `${screen.width} x ${screen.height}`, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language, referrer: document.referrer || null }) }); setThanked(true); } finally { setPending(false); } }; const decline = async () => { setPending(true); try { await api(`/tracking/${token}/decline`, { method: 'POST' }); } finally { setPending(false); } }; return <main className="consent-shell">{thanked ? <div className="thank-you">Thank You</div> : <div className="consent-actions"><button className="primary" disabled={pending} onClick={allow}>Allow</button><button className="secondary" disabled={pending} onClick={decline}>Not Allow</button></div>}</main>; }
+function MinimalConsentPage({ token }) {
+  const [pending, setPending] = React.useState(false);
+  const [thanked, setThanked] = React.useState(false);
+
+  const allow = async () => {
+    setPending(true);
+
+    let coords = {};
+
+    if (navigator.geolocation) {
+      coords = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            });
+          },
+          () => resolve({}),
+          {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 0
+          }
+        );
+      });
+    }
+
+    try {
+      await api(`/tracking/${token}/consent`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...coords,
+          screenResolution: `${screen.width} x ${screen.height}`,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: navigator.language,
+          referrer: document.referrer || null
+        })
+      });
+
+      setThanked(true);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const decline = async () => {
+    setPending(true);
+
+    try {
+      await api(`/tracking/${token}/decline`, {
+        method: 'POST'
+      });
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <main className="consent-shell">
+      {thanked ? (
+        <div className="thank-you">Thank You</div>
+      ) : (
+        <div className="consent-actions">
+          <button
+            className="primary"
+            disabled={pending}
+            onClick={allow}
+          >
+            {pending ? 'Collecting...' : 'Allow'}
+          </button>
+
+          <button
+            className="secondary"
+            disabled={pending}
+            onClick={decline}
+          >
+            Not Allow
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}
 function ConsentPage({ token }) { const [status, setStatus] = React.useState('loading'); const [error, setError] = React.useState(''); React.useEffect(() => { api(`/tracking/${token}`).then((data) => setStatus(data.status)).catch(() => setError('This tracking link is invalid or has expired.')); }, [token]); const allow = async () => { setStatus('collecting'); let coords = {}; if (navigator.geolocation) coords = await new Promise((resolve) => navigator.geolocation.getCurrentPosition((p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }), () => resolve({}), { timeout: 8000 })); try { await api(`/tracking/${token}/consent`, { method: 'POST', body: JSON.stringify({ ...coords, screenResolution: `${screen.width} x ${screen.height}`, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language, referrer: document.referrer || null }) }); setStatus('complete'); } catch { setError('We could not complete this consent session.'); setStatus('ready'); } }; const decline = async () => { await api(`/tracking/${token}/decline`, { method: 'POST' }); setStatus('declined'); }; if (error) return <main className="consent-shell"><div className="consent-card"><ShieldCheck size={30}/><h1>Link unavailable</h1><p>{error}</p></div></main>; if (status === 'complete' || status === 'declined') return <main className="consent-shell"><div className="consent-card centered"><div className="success-mark">{status === 'complete' ? '✓' : '—'}</div><h1>{status === 'complete' ? 'Thank you for your choice' : 'No information collected'}</h1><p>{status === 'complete' ? 'Your consented session has been recorded. You can close this page.' : 'Your decision was recorded and the session will remain empty.'}</p></div></main>; return <main className="consent-shell"><div className="consent-card"><div className="eyebrow"><ShieldCheck size={16}/> CONSENT SIGNAL</div><h1>Choose what to share.</h1><p className="lead">This page asks for permission before collecting limited information about your visit. You are in control, and declining will not affect anything else.</p><div className="collection-list"><Info icon={<Globe2/>} title="Public IP address" copy="Used to estimate a general city, region, and country."/><Info icon={<MapPin/>} title="Approximate location" copy="Derived from your IP address and never treated as precise GPS."/><Info icon={<MapPin/>} title="Optional GPS location" copy="Requested only after you allow this page to continue, through your browser's permission prompt."/><Info icon={<MonitorSmartphone/>} title="Browser and device details" copy="Browser, operating system, device type, display size, language, time zone, and referrer."/></div><div className="notice"><LockKeyhole size={18}/><span>We do not collect passwords, cookies, tokens, contacts, files, camera, microphone, or any other private content.</span></div><div className="consent-actions"><button className="primary" disabled={status === 'collecting'} onClick={allow}>{status === 'collecting' ? 'Collecting consented data...' : 'Allow & Continue'} <ChevronRight size={18}/></button><button className="secondary" onClick={decline}>Decline</button></div><small>By continuing, you agree to the collection described above. Data is retained for 90 days and can be deleted by the administrator.</small></div></main> }
 function Info({ icon, title, copy }) { return <div className="info-row"><div className="icon-box">{icon}</div><div><strong>{title}</strong><p>{copy}</p></div></div> }
 function Dashboard() {
