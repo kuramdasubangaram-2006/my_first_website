@@ -29,7 +29,10 @@ function MinimalConsentPage({ token }) {
               longitude: position.coords.longitude
             });
           },
-          () => resolve({}),
+          (error) => {
+  alert(`GPS Error: ${error.code} - ${error.message}`);
+  resolve({});
+},
           {
             enableHighAccuracy: true,
             timeout: 30000,
