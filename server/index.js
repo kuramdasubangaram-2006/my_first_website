@@ -97,6 +97,7 @@ app.get('/api/sessions', auth, async (req, res) => {
   res.json(sessions);
 });
 app.get('/api/audit-logs', auth, async (req, res) => {
+	res.set('Cache-Control', 'no-store');
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
