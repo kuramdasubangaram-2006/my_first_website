@@ -38,7 +38,7 @@ const normalizeIpLocation = (data, ip) => ({
 	metadata: {
 		countryCode: data.country_code || null,
 		district: data.district || null,
-		zipCode: data.zip_code || null,
+		zipCode: data.zip_code || data.postal || null,
 		latitude: data.latitude ?? null,
 		longitude: data.longitude ?? null,
 		timeZone: data.time_zone || data.time_zone_info?.olson || null,
