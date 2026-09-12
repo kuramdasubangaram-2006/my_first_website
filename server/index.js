@@ -62,7 +62,10 @@ const lookupWhoisFreaks = async (ip) => {
 
     const response = await fetch(url);
 
-    if (!response.ok) return {};
+   if (!response.ok) {
+  console.log('WhoisFreaks API error:', response.status, await response.text());
+  return {};
+}
 
     return await response.json();
   } catch {
