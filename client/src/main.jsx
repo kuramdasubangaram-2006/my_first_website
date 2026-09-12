@@ -118,7 +118,301 @@ function Login({ onLogin }) {
 	};
 	return <main className="login-shell"><div className="login-visual"><div className="brand-mark"><Radio size={22}/></div><p className="eyebrow">PRIVACY OPERATIONS</p><h1>Consent, made visible.</h1><p>One calm surface for every consented signal, with the privacy boundary always in view.</p></div><form className="login-card" onSubmit={submit}><div className="eyebrow"><LockKeyhole size={16}/> PRIVATE DASHBOARD</div><h2>{registering ? 'Create account' : 'Sign in'}</h2><label>Email<input type="email" required value={form.email} onChange={(e) => setForm({...form, email: e.target.value})}/></label><label>Password<input type="password" required minLength={10} value={form.password} onChange={(e) => setForm({...form, password: e.target.value})}/></label>{error && <p className="error">{error}</p>}<button className="primary">{registering ? 'Create account' : 'Enter dashboard'} <ChevronRight size={18}/></button><button type="button" className="secondary" onClick={() => { setRegistering(!registering); setError(''); }}>{registering ? 'Back to sign in' : 'Create a user account'}</button><small>Each account can access only the tracking links and sessions it owns.</small></form></main>;
 }
-function Admin({ setAuthed }) { const [sessions, setSessions] = React.useState([]); const [search, setSearch] = React.useState(''); const [link, setLink] = React.useState(''); const load = React.useCallback(() => api(`/sessions?search=${encodeURIComponent(search)}`).then(setSessions).catch(() => { localStorage.removeItem('adminToken'); setAuthed(false); }), [search, setAuthed]); React.useEffect(() => { load(); const socket = io('https://my-first-website-1-58br.onrender.com'); socket.on('session:updated', load); return () => socket.disconnect(); }, [load]); const createLink = async () => { const data = await api('/tracking-links', { method: 'POST' }); setLink(`${location.origin}${data.path}`); }; const remove = async (id) => { await api(`/sessions/${id}`, { method: 'DELETE' }); load(); }; const consented = sessions.filter((s) => s.consentStatus === 'granted'); const gps = consented.filter((s) => s.gps).length; return <div className="app-shell"><header className="topbar"><div className="brand"><div className="brand-mark"><Radio size={18}/></div><span>CONSENT <b>SIGNAL</b></span></div><div className="top-actions"><span className="live"><i/> LIVE FEED</span><button className="icon-button" title="Sign out" onClick={() => { localStorage.removeItem('adminToken'); setAuthed(false); }}><LogOut size={18}/></button></div></header><main className="dashboard"><div className="page-heading"><div><p className="eyebrow">OVERVIEW / PRIVACY OPERATIONS</p><h1>Signal overview</h1><p className="muted">Every record below was created after an explicit consent decision.</p></div><button className="primary" onClick={createLink}><Plus size={18}/> Create tracking link</button></div>{link && <div className="link-banner"><span>New consent link</span><code>{link}</code><button onClick={() => navigator.clipboard.writeText(link)}>Copy</button></div>}<div className="stats"><Stat icon={<Radio/>} label="Total sessions" value={sessions.length} accent="lime"/><Stat icon={<ShieldCheck/>} label="Consent granted" value={consented.length} accent="blue"/><Stat icon={<MapPin/>} label="GPS permitted" value={gps} accent="orange"/><Stat icon={<Clock3/>} label="Retention window" value="90d" accent="violet"/></div><div className="content-grid"><section className="panel sessions-panel"><div className="panel-heading"><div><p className="eyebrow">SESSION STREAM</p><h2>Recent sessions</h2></div><div className="search"><Search size={16}/><input placeholder="Search sessions" value={search} onChange={(e) => setSearch(e.target.value)}/></div></div><div className="table-wrap"><table><thead><tr><th>Session</th><th>Captured</th><th>IP / location</th><th>Device</th><th>Consent</th><th></th></tr></thead><tbody>{sessions.map((s) => <tr key={s.id}><td><strong>#{s.id.slice(0, 8)}</strong><small>{s.language || 'Pending'}</small></td><td>{formatDate(s.capturedAt || s.createdAt)}</td><td><strong>{s.ip || 'Not captured'}</strong><small>{[s.location?.city, s.location?.country].filter(Boolean).join(', ') || 'Awaiting consent'}</small></td><td><strong>{s.deviceType || '—'}</strong><small>{s.browser || '—'}</small></td><td><span className={`status ${s.consentStatus}`}>{s.consentStatus}</span></td><td><button className="delete-button" title="Delete session" onClick={() => remove(s.id)}><Trash2 size={16}/></button></td></tr>)}</tbody></table>{!sessions.length && <div className="empty">No sessions yet. Create a link and send it to a user.</div>}</div></section><aside className="side-stack"><MapPanel sessions={consented}/><div className="panel privacy-panel"><div className="panel-heading"><div><p className="eyebrow">DATA GUARDRAIL</p><h2>Privacy posture</h2></div><ShieldCheck className="green"/></div><div className="guardrail"><span className="dot green-dot"/><span>Explicit consent required</span><b>ENFORCED</b></div><div className="guardrail"><span className="dot blue-dot"/><span>GPS permission</span><b>OPTIONAL</b></div><div className="guardrail"><span className="dot orange-dot"/><span>Auto deletion</span><b>90 DAYS</b></div></div></aside></div></main></div> }
+function Admin({ setAuthed }) {
+  const [sessions, setSessions] = React.useState([]);
+  const [auditLogs, setAuditLogs] = React.useState([]);
+  const [search, setSearch] = React.useState('');
+  const [link, setLink] = React.useState('');
+
+  const load = React.useCallback(
+    () =>
+      api(`/sessions?search=${encodeURIComponent(search)}`)
+        .then(setSessions)
+        .catch(() => {
+          localStorage.removeItem('adminToken');
+          setAuthed(false);
+        }),
+    [search, setAuthed]
+  );
+
+  const loadAuditLogs = React.useCallback(
+    () => api('/audit-logs').then(setAuditLogs).catch(() => {}),
+    []
+  );
+
+  React.useEffect(() => {
+    load();
+    loadAuditLogs();
+
+    const socket = io('https://my-first-website-1-58br.onrender.com');
+
+    socket.on('session:updated', () => {
+      load();
+      loadAuditLogs();
+    });
+
+    return () => socket.disconnect();
+  }, [load, loadAuditLogs]);
+
+  const createLink = async () => {
+    const data = await api('/tracking-links', { method: 'POST' });
+    setLink(`${location.origin}${data.path}`);
+  };
+
+  const remove = async (id) => {
+    await api(`/sessions/${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  const consented = sessions.filter(
+    (s) => s.consentStatus === 'granted'
+  );
+
+  const gps = consented.filter((s) => s.gps).length;
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <div className="brand-mark">
+            <Radio size={18} />
+          </div>
+          <span>
+            CONSENT <b>SIGNAL</b>
+          </span>
+        </div>
+
+        <div className="top-actions">
+          <span className="live">
+            <i /> LIVE FEED
+          </span>
+
+          <button
+            className="icon-button"
+            title="Sign out"
+            onClick={() => {
+              localStorage.removeItem('adminToken');
+              setAuthed(false);
+            }}
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+      </header>
+
+      <main className="dashboard">
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">OVERVIEW / PRIVACY OPERATIONS</p>
+            <h1>Signal overview</h1>
+            <p className="muted">
+              Every record below was created after an explicit consent
+              decision.
+            </p>
+          </div>
+
+          <button className="primary" onClick={createLink}>
+            <Plus size={18} /> Create tracking link
+          </button>
+        </div>
+
+        {link && (
+          <div className="link-banner">
+            <span>New consent link</span>
+            <code>{link}</code>
+
+            <button onClick={() => navigator.clipboard.writeText(link)}>
+              Copy
+            </button>
+          </div>
+        )}
+
+        <div className="stats">
+          <Stat
+            icon={<Radio />}
+            label="Total sessions"
+            value={sessions.length}
+            accent="lime"
+          />
+
+          <Stat
+            icon={<ShieldCheck />}
+            label="Consent granted"
+            value={consented.length}
+            accent="blue"
+          />
+
+          <Stat
+            icon={<MapPin />}
+            label="GPS permitted"
+            value={gps}
+            accent="orange"
+          />
+
+          <Stat
+            icon={<Clock3 />}
+            label="Retention window"
+            value="90d"
+            accent="violet"
+          />
+        </div>
+
+        <div className="content-grid">
+          <section className="panel sessions-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">SESSION STREAM</p>
+                <h2>Recent sessions</h2>
+              </div>
+
+              <div className="search">
+                <Search size={16} />
+
+                <input
+                  placeholder="Search sessions"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th>Captured</th>
+                    <th>IP / location</th>
+                    <th>Device</th>
+                    <th>Consent</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {sessions.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <strong>#{s.id.slice(0, 8)}</strong>
+                        <small>{s.language || 'Pending'}</small>
+                      </td>
+
+                      <td>
+                        {formatDate(s.capturedAt || s.createdAt)}
+                      </td>
+
+                      <td>
+                        <strong>{s.ip || 'Not captured'}</strong>
+
+                        <small>
+                          {[s.location?.city, s.location?.country]
+                            .filter(Boolean)
+                            .join(', ') || 'Awaiting consent'}
+                        </small>
+                      </td>
+
+                      <td>
+                        <strong>{s.deviceType || '—'}</strong>
+                        <small>{s.browser || '—'}</small>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status ${s.consentStatus}`}
+                        >
+                          {s.consentStatus}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          className="delete-button"
+                          title="Delete session"
+                          onClick={() => remove(s.id)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {!sessions.length && (
+                <div className="empty">
+                  No sessions yet. Create a link and send it to a user.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <aside className="side-stack">
+            <MapPanel sessions={consented} />
+
+            <div className="panel privacy-panel">
+              <div className="panel-heading">
+                <div>
+                  <p className="eyebrow">DATA GUARDRAIL</p>
+                  <h2>Privacy posture</h2>
+                </div>
+
+                <ShieldCheck className="green" />
+              </div>
+
+              <div className="guardrail">
+                <span className="dot green-dot" />
+                <span>Explicit consent required</span>
+                <b>ENFORCED</b>
+              </div>
+
+              <div className="guardrail">
+                <span className="dot blue-dot" />
+                <span>GPS permission</span>
+                <b>OPTIONAL</b>
+              </div>
+
+              <div className="guardrail">
+                <span className="dot orange-dot" />
+                <span>Auto deletion</span>
+                <b>90 DAYS</b>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <section className="panel audit-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">SECURITY ACTIVITY</p>
+              <h2>Audit Logs</h2>
+            </div>
+          </div>
+
+          <div className="audit-list">
+            {auditLogs.map((log) => (
+              <div className="audit-row" key={log.id}>
+                <div>
+                  <strong>{log.action}</strong>
+                  <small>
+                    Session: {log.session_id || '—'}
+                  </small>
+                </div>
+
+                <span>{formatDate(log.created_at)}</span>
+              </div>
+            ))}
+
+            {!auditLogs.length && (
+              <div className="timeline-empty">
+                No audit events yet.
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
 function Stat({ icon, label, value, accent }) { return <div className={`stat ${accent}`}><div className="stat-icon">{icon}</div><div><p>{label}</p><strong>{value}</strong></div></div> }
 function MapPanel({ sessions }) { const [Map, setMap] = React.useState(null); React.useEffect(() => { import('react-leaflet').then(setMap); }, []); const point = sessions.find((s) => s.gps)?.gps; return <div className="panel map-panel"><div className="panel-heading"><div><p className="eyebrow">LOCATION LAYER</p><h2>Consent map</h2></div><MapPin size={18}/></div>{Map && point ? <Map.MapContainer center={[point.latitude, point.longitude]} zoom={4} scrollWheelZoom={false} className="map"><Map.TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/><Map.Marker position={[point.latitude, point.longitude]}><Map.Popup>GPS-permitted session</Map.Popup></Map.Marker></Map.MapContainer> : <div className="map-placeholder"><MapPin size={24}/><span>{sessions.length ? 'Approximate IP locations are shown in the table. GPS appears here only when permitted.' : 'Consent locations will appear here.'}</span></div>}<div className="map-legend"><span><i className="legend-dot blue-dot"/> IP approximate</span><span><i className="legend-dot orange-dot"/> GPS permitted</span></div><div className="timeline"><p className="eyebrow">SESSION TIMELINE</p>{sessions.slice(0, 3).map((session) => <div className="timeline-row" key={session.id}><i className="timeline-dot"/><div><strong>{session.location?.city || 'Location unavailable'} signal received</strong><small>{formatDate(session.capturedAt)} · {session.deviceType || 'Device unknown'}</small></div></div>)}{!sessions.length && <div className="timeline-empty">Consent events will appear here in real time.</div>}</div><div className="ip-intelligence"><p className="eyebrow">IP INTELLIGENCE</p>{sessions.filter((session) => session.ipMetadata).slice(0, 3).map((session) => <div className="ip-intelligence-row" key={session.id}><strong>{session.ip || 'IP unavailable'}</strong><span>{session.locationLabel || 'Location unavailable'}</span><small>ISP: {session.ipMetadata?.isp || '—'} · ASN: {session.ipMetadata?.asn || '—'} · District: {session.ipMetadata?.district || '—'} · ZIP: {session.ipMetadata?.zipCode || '—'}</small><small>Timezone: {session.ipMetadata?.timeZone || session.timeZone || '—'} · Network: {session.ipMetadata?.netSpeed || '—'} · Usage: {session.ipMetadata?.usageType || '—'}</small><small>Proxy: {session.ipMetadata?.isProxy == null ? '—' : session.ipMetadata.isProxy ? 'Yes' : 'No'} · VPN: {session.ipMetadata?.isVpn == null ? '—' : session.ipMetadata.isVpn ? 'Yes' : 'No'} · Fraud score: {session.ipMetadata?.fraudScore == null ? '—' : session.ipMetadata.fraudScore}</small></div>)}{!sessions.some((session) => session.ipMetadata) && <div className="timeline-empty">Detailed IP intelligence appears after consent.</div>}</div></div> }
 
