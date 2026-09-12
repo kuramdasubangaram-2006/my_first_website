@@ -7,6 +7,7 @@ dotenv.config();
 const { Pool } = pg;
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false }) : null;
 const memory = new Map();
+const auditMemory = [];
 const users = new Map();
 const key = process.env.FIELD_ENCRYPTION_KEY ? Buffer.from(process.env.FIELD_ENCRYPTION_KEY, 'base64') : null;
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
@@ -92,7 +93,16 @@ export async function grantConsent(tokenHash, data) {
   const { rows } = await pool.query(`UPDATE tracking_sessions SET consent_status='granted', consent_at=$1, captured_at=$2, ip_address_enc=$3, ip_city_enc=$4, ip_region_enc=$5, ip_country_enc=$6, ip_metadata_enc=$7, latitude_enc=$8, longitude_enc=$9, browser=$10, operating_system=$11, device_type=$12, screen_resolution=$13, time_zone=$14, language=$15, referrer=$16 WHERE token_hash=$17 RETURNING *`, values); return rows[0];
 }
 export async function addAuditLog(action, sessionId) {
-  if (!pool) return;
+  if (!pool) {
+    auditMemory.push({
+      id: auditMemory.length + 1,
+      action,
+      session_id: sessionId,
+      created_at: new Date().toISOString()
+    });
+    return;
+  }
+
   await schemaReady;
   await pool.query(
     'INSERT INTO audit_logs (action, session_id) VALUES ($1, $2)',
@@ -100,7 +110,8 @@ export async function addAuditLog(action, sessionId) {
   );
 }
 export async function listAuditLogs() {
-  if (!pool) return [];
+  if (!pool) return [...auditMemory].reverse();
+
   await schemaReady;
 
   const result = await pool.query(
@@ -112,7 +123,6 @@ export async function listAuditLogs() {
 
   return result.rows;
 }
-
 export async function declineConsent(tokenHash) {
   if (!pool) { const session = memory.get(tokenHash); if (session) session.consent_status = 'declined'; return session; }
   const { rows } = await pool.query("UPDATE tracking_sessions SET consent_status='declined' WHERE token_hash=$1 RETURNING *", [tokenHash]); return rows[0];
