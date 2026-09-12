@@ -52,6 +52,23 @@ const normalizeIpLocation = (data, ip) => ({
 		fraudScore: data.fraud_score ?? data.security?.fraud_score ?? null
 	}
 });
+const lookupWhoisFreaks = async (ip) => {
+  if (!process.env.WHOISFREAKS_API_KEY) return {};
+
+  try {
+    const url = new URL('https://api.whoisfreaks.com/v1.0/security');
+    url.searchParams.set('apiKey', process.env.WHOISFREAKS_API_KEY);
+    url.searchParams.set('ip', ip);
+
+    const response = await fetch(url);
+
+    if (!response.ok) return {};
+
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
 const lookupIpLocation = async (ip) => {
 	if (process.env.IP2LOCATION_API_KEY) {
 		try {
@@ -81,7 +98,7 @@ app.post('/api/auth/login', async (req, res) => { const { email, password } = re
 app.post('/api/tracking-links', auth, async (req, res) => { const token = crypto.randomBytes(24).toString('base64url'); await createSession(hashToken(token), req.user.id); res.status(201).json({ token, path: `/track/${token}` }); });
 app.get('/api/tracking/:token', async (req, res) => { const session = await getSession(hashToken(req.params.token)); if (!session) return res.status(404).json({ error: 'Tracking link not found' }); res.json({ id: session.id, status: session.consent_status }); });
 app.post('/api/tracking/:token/consent', async (req, res) => { const tokenHash = hashToken(req.params.token); const session = await getSession(tokenHash); if (!session) return res.status(404).json({ error: 'Tracking link not found' }); const payload = req.body || {}; const ua = req.get('user-agent'); const forwardedFor = req.headers['x-forwarded-for'];
-const clientIp = (forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip).replace('::ffff:', ''); const lookupIp = await resolveLocationIp(clientIp).catch(() => clientIp); const geo = await lookupIpLocation(lookupIp).catch(() => ({})); const data = { ...browserInfo(ua), ip_address: geo.ip || lookupIp, ip_city: geo.city || geo.city_name || null, ip_region: geo.region || geo.region_name || null, ip_country: geo.country_name || geo.country || geo.country_code || null, ip_metadata: geo.metadata || null, latitude: payload.latitude ?? null,
+const clientIp = (forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip).replace('::ffff:', ''); const lookupIp = await resolveLocationIp(clientIp).catch(() => clientIp);const geo = await lookupIpLocation(lookupIp).catch(() => ({})); const reputation = await lookupWhoisFreaks(lookupIp); const data = {whoisfreaks_reputation: reputation, ...browserInfo(ua), ip_address: geo.ip || lookupIp, ip_city: geo.city || geo.city_name || null, ip_region: geo.region || geo.region_name || null, ip_country: geo.country_name || geo.country || geo.country_code || null, ip_metadata: geo.metadata || null, latitude: payload.latitude ?? null,
 longitude: payload.longitude ?? null, screen_resolution: payload.screenResolution || null, time_zone: payload.timeZone || geo.metadata?.timeZone || null, language: payload.language || null, referrer: payload.referrer || null }; const updated = await grantConsent(tokenHash, data);await addAuditLog('CONSENT_GRANTED', updated.id); const output = formatSession(updated); io.emit('session:updated'); res.json(output); });
 app.post('/api/tracking/:token/decline', async (req, res) => {
   const updated = await declineConsent(hashToken(req.params.token));
