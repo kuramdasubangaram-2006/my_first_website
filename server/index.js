@@ -88,6 +88,14 @@ app.post('/api/tracking/:token/decline', async (req, res) => {
   await addAuditLog('CONSENT_DECLINED', updated.id);
   res.json({ status: 'declined' });
 });
+app.get('/api/sessions', auth, async (req, res) => {
+  const sessions = await listSessions({
+    search: req.query.search || '',
+    userId: req.user.id,
+    isAdmin: req.user.role === 'admin'
+  });
+  res.json(sessions);
+});
 app.get('/api/audit-logs', auth, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
