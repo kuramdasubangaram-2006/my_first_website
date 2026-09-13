@@ -9,8 +9,57 @@ import './details.css';
 
 const api = async (path, options = {}) => { const token = localStorage.getItem('adminToken'); const response = await fetch(`https://my-first-website-1-58br.onrender.com/api${path}`,  { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) } }); if (!response.ok) throw new Error((await response.json()).error || 'Request failed'); return response.status === 204 ? null : response.json(); };
 const formatDate = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Waiting';
-const collectDeviceTelemetry = async () => { let battery = null; try { if (navigator.getBattery) { const info = await navigator.getBattery(); battery = { level: Math.round(info.level * 100), charging: info.charging }; } } catch {} const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection; return { battery, network: connection ? { effectiveType: connection.effectiveType || null, downlinkMbps: connection.downlink ?? null, rttMs: connection.rtt ?? null, saveData: connection.saveData ?? null, type: connection.type || null } : null }; };
-function App() { const track = location.pathname.match(/^\/track\/([^/]+)$/); return track ? <MinimalConsentPage token={track[1]} /> : <Dashboard />; }
+const collectDeviceTelemetry = async () => {
+  let battery = null;
+  let ram = null;
+  let storage = null;
+
+  try {
+    if (navigator.getBattery) {
+      const info = await navigator.getBattery();
+      battery = {
+        level: Math.round(info.level * 100),
+        charging: info.charging
+      };
+    }
+  } catch {}
+
+  try {
+    if (navigator.deviceMemory) {
+      ram = `${navigator.deviceMemory} GB`;
+    }
+  } catch {}
+
+  try {
+    if (navigator.storage?.estimate) {
+      const info = await navigator.storage.estimate();
+      storage = {
+        quotaGB: info.quota ? Number((info.quota / (1024 ** 3)).toFixed(2)) : null,
+        usageGB: info.usage ? Number((info.usage / (1024 ** 3)).toFixed(2)) : null
+      };
+    }
+  } catch {}
+
+  const connection =
+    navigator.connection ||
+    navigator.mozConnection ||
+    navigator.webkitConnection;
+
+  return {
+    battery,
+    ram,
+    storage,
+    network: connection
+      ? {
+          effectiveType: connection.effectiveType || null,
+          downlinkMbps: connection.downlink ?? null,
+          rttMs: connection.rtt ?? null,
+          saveData: connection.saveData ?? null,
+          type: connection.type || null
+        }
+      : null
+  };
+};function App() { const track = location.pathname.match(/^\/track\/([^/]+)$/); return track ? <MinimalConsentPage token={track[1]} /> : <Dashboard />; }
 function MinimalConsentPage({ token }) {
   const [pending, setPending] = React.useState(false);
   const [thanked, setThanked] = React.useState(false);
@@ -312,9 +361,11 @@ function Admin({ setAuthed }) {
                       </td>
 
                       <td>
-                        <strong>{s.deviceType || '—'}</strong>
-                        <small>{s.browser || '—'}</small>
-                      </td>
+  <strong>{s.deviceType || '—'}</strong>
+  <small>{s.browser || '—'}</small>
+  <small>RAM: {s.ram || '—'}</small>
+  <small>Storage: {s.storage ? `${s.storage.quotaGB || '—'} GB` : '—'}</small>
+</td>
 
                       <td>
                         <span
@@ -425,6 +476,8 @@ window.fetch = async (input, init = {}) => {
 			const telemetry = await collectDeviceTelemetry();
 			body.battery = body.battery || telemetry.battery;
 			body.network = body.network || telemetry.network;
+      body.ram = body.ram || telemetry.ram;
+      body.storage = body.storage || telemetry.storage;
 			body.referrer = `__telemetry__:${JSON.stringify({ referrer: body.referrer || null, battery: body.battery, network: body.network })}`;
 			init.body = JSON.stringify(body);
 		} catch {}
