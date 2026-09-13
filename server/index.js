@@ -124,7 +124,7 @@ const lookupGpsLocation = async (latitude, longitude) => {
 
     return {
       village: address.village || address.hamlet || null,
-      mandal: address.municipality || address.city_district || null,
+      mandal: address.municipality || address.city_district || address.county || null,
       district: address.state_district || address.county || null,
       state: address.state || null,
       country: address.country || null,
