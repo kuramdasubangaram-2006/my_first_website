@@ -190,6 +190,11 @@ function Admin({ setAuthed }) {
     'Connection',
     'Timezone',
     'Language',
+    'GPS Latitude',
+'GPS Longitude',
+'GPS Village',
+'GPS Mandal',
+'GPS District',
     'Consent'
   ];
 
@@ -212,6 +217,11 @@ function Admin({ setAuthed }) {
     s.ipMetadata?.connectionType || '',
     s.ipMetadata?.timeZone || s.timeZone || '',
     s.language || '',
+    s.gps?.latitude ?? '',
+s.gps?.longitude ?? '',
+s.ipMetadata?.gpsLocation?.village || '',
+s.ipMetadata?.gpsLocation?.mandal || '',
+s.ipMetadata?.gpsLocation?.district || '',
     s.consentStatus || ''
   ]);
 
