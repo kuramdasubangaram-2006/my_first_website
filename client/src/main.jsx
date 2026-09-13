@@ -364,6 +364,7 @@ function Admin({ setAuthed }) {
   <strong>{s.deviceType || '—'}</strong>
   <small>{s.browser || '—'}</small>
   <small>RAM: {s.ram || '—'}</small>
+  <small>Battery: {s.ipMetadata?.battery?.level != null ? `${s.ipMetadata.battery.level}%${s.ipMetadata.battery.charging ? ' · Charging' : ' · Not charging'}` : '—'}</small>
   <small>Storage: Browser quota {s.storage?.quotaGB || '—'} GB</small>
   <small>OS: {s.operatingSystem || '—'}</small>
 </td>
