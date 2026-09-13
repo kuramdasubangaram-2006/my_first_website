@@ -10,6 +10,10 @@ Privacy-first consent and user information dashboard. The tracking link is opaqu
 4. Run `npm install` and `npm run dev`.
 5. Open `http://localhost:5173` for the dashboard. Use `Create tracking link` to generate `/track/<opaque-token>`.
 
+The dashboard supports account registration and login. Each registered account receives a private set of tracking links and sessions. The existing admin account is synchronized from `ADMIN_EMAIL` and `ADMIN_PASSWORD` at server startup and can still view all sessions.
+
+For an existing PostgreSQL database, the server startup migration creates `users`, adds `tracking_sessions.owner_id`, assigns legacy sessions to the configured admin account, and adds the ownership index and foreign key. For a new database, run `server/schema.sql` before starting the server.
+
 To use IP2Location for consented IP enrichment, set `IP2LOCATION_API_KEY` in `.env`. The server requests the visitor's city, region, and country from IP2Location after consent, then displays those fields in the dashboard. `IP2LOCATION_API_URL` can be changed for a compatible endpoint; when no key is configured, the local fallback provider remains available.
 
 The session API also returns selected provider metadata after consent: country code, district, postal code, coordinates, timezone, ASN, ISP, domain, network speed, usage type, proxy/VPN indicators, and fraud score. The metadata is encrypted when `FIELD_ENCRYPTION_KEY` is valid.
@@ -23,7 +27,7 @@ The tracking page describes IP address, approximate IP location, optional GPS, a
 ## Production notes
 
 - Terminate TLS at the reverse proxy and set `NODE_ENV=production`.
-- Replace the demo admin login with SSO or a stronger identity provider.
+- Replace the environment-backed admin login with SSO or a stronger identity provider.
 - Set a production IP geolocation provider and review its data processing terms.
 - Use a 32-byte encryption key for `FIELD_ENCRYPTION_KEY`; sensitive values are encrypted before persistence.
 - Run the retention job and use the dashboard delete action to honor deletion requests.
