@@ -364,7 +364,7 @@ function Admin({ setAuthed }) {
   <strong>{s.deviceType || '—'}</strong>
   <small>{s.browser || '—'}</small>
   <small>RAM: {s.ram || '—'}</small>
-  <small>Storage: {s.storage ? `${s.storage.quotaGB || '—'} GB` : '—'}</small>
+  <small>Storage: Browser quota {s.storage?.quotaGB || '—'} GB</small>
 </td>
 
                       <td>
