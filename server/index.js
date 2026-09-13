@@ -111,7 +111,7 @@ const lookupGpsLocation = async (latitude, longitude) => {
     const data = await response.json();
 
     return {
-      city: data.city || data.locality || data.principalSubdivision || null,
+      city: data.locality || data.city || data.principalSubdivision || null,
       region: data.principalSubdivision || null,
       country: data.countryName || null,
       district: data.localityInfo?.administrative?.[2]?.name || null,
