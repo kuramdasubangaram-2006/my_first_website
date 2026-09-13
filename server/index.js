@@ -100,23 +100,35 @@ const lookupGpsLocation = async (latitude, longitude) => {
   if (latitude == null || longitude == null) return {};
 
   try {
-    const url = new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
-    url.searchParams.set('latitude', latitude);
-    url.searchParams.set('longitude', longitude);
-    url.searchParams.set('localityLanguage', 'en');
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('lat', latitude);
+    url.searchParams.set('lon', longitude);
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('zoom', '13');
+    url.searchParams.set('accept-language', 'en');
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'ConsentSignalDashboard/1.0'
+      }
+    });
+
     if (!response.ok) return {};
 
     const data = await response.json();
-    console.log('GPS reverse geocode:', JSON.stringify(data));
+
+    console.log('Nominatim GPS reverse geocode:', JSON.stringify(data));
+
+    const address = data.address || {};
 
     return {
-      city: data.localityInfo?.informative?.[0]?.name || data.locality || data.city || data.principalSubdivision || null,
-      region: data.principalSubdivision || null,
-      country: data.countryName || null,
-      district: data.localityInfo?.administrative?.[2]?.name || null,
-      postcode: data.postcode || null
+      village: address.village || address.hamlet || null,
+      mandal: address.municipality || address.city_district || null,
+      district: address.state_district || address.county || null,
+      state: address.state || null,
+      country: address.country || null,
+      postcode: address.postcode || null
     };
   } catch {
     return {};
