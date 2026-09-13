@@ -172,6 +172,65 @@ function Admin({ setAuthed }) {
   const [auditLogs, setAuditLogs] = React.useState([]);
   const [search, setSearch] = React.useState('');
   const [link, setLink] = React.useState('');
+  const exportCsv = () => {
+  if (!sessions.length) return;
+
+  const headers = [
+    'Session',
+    'Captured',
+    'IP',
+    'Location',
+    'Browser',
+    'OS',
+    'Device',
+    'RAM',
+    'Battery',
+    'Storage',
+    'Network',
+    'Connection',
+    'Timezone',
+    'Language',
+    'Consent'
+  ];
+
+  const rows = sessions.map((s) => [
+    s.id,
+    formatDate(s.capturedAt || s.createdAt),
+    s.ip || '',
+    [s.location?.city, s.location?.country].filter(Boolean).join(', '),
+    s.browser || '',
+    s.operatingSystem || '',
+    s.deviceType || '',
+    s.ram || '',
+    s.ipMetadata?.battery?.level != null
+      ? `${s.ipMetadata.battery.level}%`
+      : '',
+    s.storage?.quotaGB != null
+      ? `Browser quota ${s.storage.quotaGB} GB`
+      : '',
+    s.ipMetadata?.netSpeed || '',
+    s.ipMetadata?.connectionType || '',
+    s.ipMetadata?.timeZone || s.timeZone || '',
+    s.language || '',
+    s.consentStatus || ''
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')
+    )
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'consent-signal-sessions.csv';
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
 
   const load = React.useCallback(
     () =>
@@ -260,6 +319,13 @@ function Admin({ setAuthed }) {
             </p>
           </div>
 
+          <button
+  className="secondary"
+  onClick={exportCsv}
+  disabled={!sessions.length}
+>
+  Export CSV
+</button>
           <button className="primary" onClick={createLink}>
             <Plus size={18} /> Create tracking link
           </button>
