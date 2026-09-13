@@ -109,7 +109,7 @@ const lookupGpsLocation = async (latitude, longitude) => {
     if (!response.ok) return {};
 
     const data = await response.json();
-    console.log('GPS reverse geocode:', JSON.stringify(data, null, 2));
+    console.log('GPS reverse geocode:', JSON.stringify(data));
 
     return {
       city: data.localityInfo?.informative?.[0]?.name || data.locality || data.city || data.principalSubdivision || null,
