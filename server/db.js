@@ -17,6 +17,7 @@ const schemaReady = pool ? initializeDatabase() : initializeMemory();
 async function initializeDatabase() {
   if (!adminPassword) throw new Error('ADMIN_PASSWORD must be configured');
   await pool.query(`CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS tracking_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), token_hash TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), consent_status TEXT NOT NULL DEFAULT 'pending')`);
   await pool.query('ALTER TABLE tracking_sessions ADD COLUMN IF NOT EXISTS owner_id UUID');
   await pool.query('ALTER TABLE tracking_sessions ADD COLUMN IF NOT EXISTS ip_metadata_enc TEXT');
   await pool.query('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, \'admin\') ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role=\'admin\'', [adminEmail, await bcrypt.hash(adminPassword, 12)]);
