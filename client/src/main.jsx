@@ -1,11 +1,16 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { io } from 'socket.io-client';
+import L from 'leaflet';
 import { ShieldCheck, MapPin, MonitorSmartphone, Globe2, Clock3, Trash2, Plus, Search, LockKeyhole, Radio, LogOut, ExternalLink, ChevronRight } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
 import './timeline.css';
 import './details.css';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
 
 const api = async (path, options = {}) => { const token = localStorage.getItem('adminToken'); const response = await fetch(`https://my-first-website-1-58br.onrender.com/api${path}`,  { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) } }); if (!response.ok) throw new Error((await response.json()).error || 'Request failed'); return response.status === 204 ? null : response.json(); };
 const formatDate = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Waiting';
@@ -548,6 +553,13 @@ s.ipMetadata?.gpsLocation?.district || '',
   );
 }
 function Stat({ icon, label, value, accent }) { return <div className={`stat ${accent}`}><div className="stat-icon">{icon}</div><div><p>{label}</p><strong>{value}</strong></div></div> }
+
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 function MapPanel({ sessions }) { const [Map, setMap] = React.useState(null); React.useEffect(() => { import('react-leaflet').then(setMap); }, []); const point = sessions.find((s) => s.gps)?.gps; return <div className="panel map-panel"><div className="panel-heading"><div><p className="eyebrow">LOCATION LAYER</p><h2>Consent map</h2></div><MapPin size={18}/></div>{Map && point ? <Map.MapContainer center={[point.latitude, point.longitude]} zoom={4} scrollWheelZoom={false} className="map"><Map.TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/><Map.Marker position={[point.latitude, point.longitude]}><Map.Popup>GPS-permitted session</Map.Popup></Map.Marker></Map.MapContainer> : <div className="map-placeholder"><MapPin size={24}/><span>{sessions.length ? 'Approximate IP locations are shown in the table. GPS appears here only when permitted.' : 'Consent locations will appear here.'}</span></div>}<div className="map-legend"><span><i className="legend-dot blue-dot"/> IP approximate</span><span><i className="legend-dot orange-dot"/> GPS permitted</span></div><div className="timeline"><p className="eyebrow">SESSION TIMELINE</p>{sessions.slice(0, 3).map((session) => <div className="timeline-row" key={session.id}><i className="timeline-dot"/><div><strong>{[session.ipMetadata?.gpsLocation?.village, session.ipMetadata?.gpsLocation?.mandal].filter(Boolean).join(', ') || session.location?.city || 'Location unavailable'} signal received</strong><small>{formatDate(session.capturedAt)} · {session.deviceType || 'Device unknown'}</small></div></div>)}{!sessions.length && <div className="timeline-empty">Consent events will appear here in real time.</div>}</div><div className="ip-intelligence"><p className="eyebrow">IP INTELLIGENCE</p>{sessions.filter((session) => session.ipMetadata).slice(0, 3).map((session) => <div className="ip-intelligence-row" key={session.id}><strong>{session.ip || 'IP unavailable'}</strong><span>{session.locationLabel || 'Location unavailable'}</span><small>ISP: {session.ipMetadata?.isp || '—'} · ASN: {session.ipMetadata?.asn || '—'} · District: {session.ipMetadata?.district || '—'} · ZIP: {session.ipMetadata?.zipCode || '—'}</small><small>Timezone: {session.ipMetadata?.timeZone || session.timeZone || '—'} · Network: {session.ipMetadata?.netSpeed || '—'} · Usage: {session.ipMetadata?.usageType || '—'}</small><small>Proxy: {session.ipMetadata?.isProxy == null ? '—' : session.ipMetadata.isProxy ? 'Yes' : 'No'} · VPN: {session.ipMetadata?.isVpn == null ? '—' : session.ipMetadata.isVpn ? 'Yes' : 'No'} · Fraud score: {session.ipMetadata?.fraudScore == null ? '—' : session.ipMetadata.fraudScore}</small></div>)}{!sessions.some((session) => session.ipMetadata) && <div className="timeline-empty">Detailed IP intelligence appears after consent.</div>}</div></div> }
 
 const browserFetch = window.fetch.bind(window);
