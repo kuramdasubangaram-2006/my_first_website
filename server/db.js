@@ -159,3 +159,22 @@ export function formatSession(row) {
 const completeDetailLabel = detailLabel;    return { id: row.id, createdAt: row.created_at, consentStatus: row.consent_status, consentAt: row.consent_at, capturedAt: row.captured_at, ip, location, locationLabel: completeDetailLabel || [location.city, location.region, location.country].filter(Boolean).join(', ') || null, detailLabel: completeDetailLabel, ipMetadata, gps: latitude != null && longitude != null ? { latitude: Number(decrypt(latitude)), longitude: Number(decrypt(longitude)) } : null, browser: row.browser, operatingSystem: row.operating_system, deviceType: row.device_type, screenResolution: row.screen_resolution, timeZone: row.time_zone, language: row.language,ram: row.ram || null,
 storage: row.storage || null, referrer: row.referrer };
 }
+export async function cleanupOldData() {
+  const retentionDays = Number(process.env.DATA_RETENTION_DAYS || 90);
+
+  if (!pool) return;
+
+  await schemaReady;
+
+  await pool.query(
+    `DELETE FROM tracking_sessions
+     WHERE created_at < NOW() - ($1 * INTERVAL '1 day')`,
+    [retentionDays]
+  );
+
+  await pool.query(
+    `DELETE FROM audit_logs
+     WHERE created_at < NOW() - ($1 * INTERVAL '1 day')`,
+    [retentionDays]
+  );
+}

@@ -10,7 +10,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
-import { authenticateUser, createSession, createUser, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession } from './db.js';
+import { authenticateUser, createSession, createUser, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';
 dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
@@ -172,5 +172,9 @@ app.get('/api/audit-logs', auth, async (req, res) => {
 app.delete('/api/sessions/:id', auth, async (req, res) => { await deleteSession(req.params.id, req.user.id, req.user.role === 'admin'); res.status(204).end(); });
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 app.use(express.static(path.resolve('client'))); app.get('*', (_req, res) => res.sendFile(path.resolve('client/index.html')));
+cleanupOldData().catch((error) => console.error('Initial data cleanup failed:', error));
+setInterval(() => {
+  cleanupOldData().catch((error) => console.error('Scheduled data cleanup failed:', error));
+}, 24 * 60 * 60 * 1000);
 server.listen(Number(process.env.PORT || 3001), () => console.log(`Consent Signal server listening on ${process.env.PORT || 3001}`));
 
