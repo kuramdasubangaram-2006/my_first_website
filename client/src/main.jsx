@@ -68,6 +68,7 @@ function MinimalConsentPage({ token }) {
     setPending(true);
 
     let coords = {};
+    const telemetry = await collectDeviceTelemetry();
 
     if (navigator.geolocation) {
       coords = await new Promise((resolve) => {
@@ -99,7 +100,11 @@ function MinimalConsentPage({ token }) {
           screenResolution: `${screen.width} x ${screen.height}`,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           language: navigator.language,
-          referrer: document.referrer || null
+          referrer: document.referrer || null,
+          battery: telemetry.battery,
+network: telemetry.network,
+ram: telemetry.ram,
+storage: telemetry.storage
         })
       });
 
