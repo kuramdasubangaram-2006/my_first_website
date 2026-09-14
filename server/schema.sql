@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS tracking_sessions (
   time_zone TEXT,
   language TEXT,
   referrer TEXT
+  ram TEXT,
+  storage JSONB
 );
 
 CREATE INDEX IF NOT EXISTS tracking_sessions_created_at_idx ON tracking_sessions (created_at DESC);

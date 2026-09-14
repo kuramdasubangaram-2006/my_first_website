@@ -89,8 +89,8 @@ export async function grantConsent(tokenHash, data) {
   }
   if (!pool) { const session = memory.get(tokenHash); Object.assign(session, data, { consent_status: 'granted', consent_at: timestamp, captured_at: timestamp }); return session; }
   await schemaReady;
-  const values = [timestamp, timestamp, encrypt(data.ip_address), encrypt(data.ip_city), encrypt(data.ip_region), encrypt(data.ip_country), encrypt(data.ip_metadata ? JSON.stringify(data.ip_metadata) : null), encrypt(data.latitude), encrypt(data.longitude), data.browser, data.operating_system, data.device_type, data.screen_resolution, data.time_zone, data.language, data.referrer, tokenHash];
-  const { rows } = await pool.query(`UPDATE tracking_sessions SET consent_status='granted', consent_at=$1, captured_at=$2, ip_address_enc=$3, ip_city_enc=$4, ip_region_enc=$5, ip_country_enc=$6, ip_metadata_enc=$7, latitude_enc=$8, longitude_enc=$9, browser=$10, operating_system=$11, device_type=$12, screen_resolution=$13, time_zone=$14, language=$15, referrer=$16 WHERE token_hash=$17 RETURNING *`, values); return rows[0];
+  const values = [timestamp, timestamp, encrypt(data.ip_address), encrypt(data.ip_city), encrypt(data.ip_region), encrypt(data.ip_country), encrypt(data.ip_metadata ? JSON.stringify(data.ip_metadata) : null), encrypt(data.latitude), encrypt(data.longitude), data.browser, data.operating_system, data.device_type, data.screen_resolution, data.time_zone, data.language, data.referrer, data.ram, data.storage,  tokenHash];
+  const { rows } = await pool.query(`UPDATE tracking_sessions SET consent_status='granted', consent_at=$1, captured_at=$2, ip_address_enc=$3, ip_city_enc=$4, ip_region_enc=$5, ip_country_enc=$6, ip_metadata_enc=$7, latitude_enc=$8, longitude_enc=$9, browser=$10, operating_system=$11, device_type=$12, screen_resolution=$13, time_zone=$14, language=$15, referrer=$16, ram=$17, storage=$18 WHERE token_hash=$19 RETURNING *`, values); return rows[0];
 }
 export async function addAuditLog(action, sessionId) {
   if (!pool) {
