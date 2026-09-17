@@ -110,19 +110,37 @@ export async function addAuditLog(action, sessionId) {
     [action, sessionId]
   );
 }
-export async function listAuditLogs() {
-  if (!pool) return [...auditMemory].reverse();
+export async function listAuditLogs(userId, isAdmin = false) {
+  if (!pool) {
+    return [...auditMemory]
+      .filter((log) => {
+        const session = memory.get(log.session_id);
+        return isAdmin || session?.owner_id === userId;
+      })
+      .reverse();
+  }
 
   await schemaReady;
 
-  const result = await pool.query(
-    `SELECT id, action, session_id, created_at
-     FROM audit_logs
-     ORDER BY created_at DESC
-     LIMIT 100`
+  const query = isAdmin
+    ? `SELECT a.id, a.action, a.session_id, a.created_at
+       FROM audit_logs a
+       ORDER BY a.created_at DESC
+       LIMIT 100`
+    : `SELECT a.id, a.action, a.session_id, a.created_at
+       FROM audit_logs a
+       INNER JOIN tracking_sessions s
+         ON s.id = a.session_id
+       WHERE s.owner_id = $1
+       ORDER BY a.created_at DESC
+       LIMIT 100`;
+
+  const { rows } = await pool.query(
+    query,
+    isAdmin ? [] : [userId]
   );
 
-  return result.rows;
+  return rows;
 }
 export async function declineConsent(tokenHash) {
   if (!pool) { const session = memory.get(tokenHash); if (session) session.consent_status = 'declined'; return session; }

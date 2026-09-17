@@ -166,11 +166,8 @@ app.get('/api/sessions', auth, async (req, res) => {
 });
 app.get('/api/audit-logs', auth, async (req, res) => {
 	res.set('Cache-Control', 'no-store');
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-
-  const logs = await listAuditLogs();
+  
+  const logs = await listAuditLogs(req.user.id, req.user.role === 'admin');
   res.json(logs);
 });
 
