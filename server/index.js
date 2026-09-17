@@ -17,7 +17,12 @@ if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
 const app = express();app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
 app.set('trust proxy', 1);
 if (process.env.NODE_ENV === 'production') app.use((req, res, next) => req.secure ? next() : res.redirect(`https://${req.headers.host}${req.originalUrl}`));
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })); app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' })); app.use(express.json({ limit: '32kb' })); app.use(morgan('tiny'));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })); app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://my-first-website-sandy-ten.vercel.app'
+  ]
+})); app.use(express.json({ limit: '32kb' })); app.use(morgan('tiny'));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 const auth = (req, res, next) => { try { const payload = jwt.verify((req.headers.authorization || '').replace(/^Bearer\s+/i, ''), jwtSecret); if (!payload.sub || !payload.role) throw new Error('Invalid token'); req.user = { id: payload.sub, email: payload.email, role: payload.role }; next(); } catch { res.status(401).json({ error: 'Authentication required' }); } };
 const admin = (req, res, next) => auth(req, res, () => req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Admin authentication required' }));
