@@ -446,13 +446,28 @@ s.ipMetadata?.gpsLocation?.district || '',
                         </small>
                       </td>
 
-                      <td>
+                     <td>
   <strong>{s.deviceType || '—'}</strong>
-  <small>{s.browser || '—'}</small>
-  <small>RAM: {s.ram || '—'}</small>
-  <small>Battery: {s.ipMetadata?.battery?.level != null ? `${s.ipMetadata.battery.level}%${s.ipMetadata.battery.charging ? ' · Charging' : ' · Not charging'}` : '—'}</small>
-  <small>Storage: Browser quota {s.storage?.quotaGB || '—'} GB</small>
-  <small>OS: {s.operatingSystem || '—'}</small>
+  <small>
+    {s.browser || '—'} · {s.operatingSystem || '—'}
+  </small>
+  <small>
+    RAM: {s.ram || '—'} · Battery: {
+      s.ipMetadata?.battery?.level != null
+        ? `${s.ipMetadata.battery.level}%`
+        : '—'
+    }
+  </small>
+  <small>
+    Storage: {
+      s.storage?.quotaGB != null
+        ? `${s.storage.quotaGB} GB`
+        : '—'
+    }
+  </small>
+  <small>
+  Network: {s.ipMetadata?.netSpeed || '—'} · {s.ipMetadata?.connectionType || '—'}
+</small>
 </td>
 
                       <td>
@@ -560,8 +575,211 @@ L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
-function MapPanel({ sessions }) { const [Map, setMap] = React.useState(null); React.useEffect(() => { import('react-leaflet').then(setMap); }, []); const point = sessions.find((s) => s.gps)?.gps; return <div className="panel map-panel"><div className="panel-heading"><div><p className="eyebrow">LOCATION LAYER</p><h2>Consent map</h2></div><MapPin size={18}/></div>{Map && point ? <Map.MapContainer center={[point.latitude, point.longitude]} zoom={4} scrollWheelZoom={false} className="map"><Map.TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/><Map.Marker position={[point.latitude, point.longitude]}><Map.Popup>GPS-permitted session</Map.Popup></Map.Marker></Map.MapContainer> : <div className="map-placeholder"><MapPin size={24}/><span>{sessions.length ? 'Approximate IP locations are shown in the table. GPS appears here only when permitted.' : 'Consent locations will appear here.'}</span></div>}<div className="map-legend"><span><i className="legend-dot blue-dot"/> IP approximate</span><span><i className="legend-dot orange-dot"/> GPS permitted</span></div><div className="timeline"><p className="eyebrow">SESSION TIMELINE</p>{sessions.slice(0, 3).map((session) => <div className="timeline-row" key={session.id}><i className="timeline-dot"/><div><strong>{[session.ipMetadata?.gpsLocation?.village, session.ipMetadata?.gpsLocation?.mandal].filter(Boolean).join(', ') || session.location?.city || 'Location unavailable'} signal received</strong><small>{formatDate(session.capturedAt)} · {session.deviceType || 'Device unknown'}</small></div></div>)}{!sessions.length && <div className="timeline-empty">Consent events will appear here in real time.</div>}</div><div className="ip-intelligence"><p className="eyebrow">IP INTELLIGENCE</p>{sessions.filter((session) => session.ipMetadata).slice(0, 3).map((session) => <div className="ip-intelligence-row" key={session.id}><strong>{session.ip || 'IP unavailable'}</strong><span>{session.locationLabel || 'Location unavailable'}</span><small>ISP: {session.ipMetadata?.isp || '—'} · ASN: {session.ipMetadata?.asn || '—'} · District: {session.ipMetadata?.district || '—'} · ZIP: {session.ipMetadata?.zipCode || '—'}</small><small>Timezone: {session.ipMetadata?.timeZone || session.timeZone || '—'} · Network: {session.ipMetadata?.netSpeed || '—'} · Usage: {session.ipMetadata?.usageType || '—'}</small><small>Proxy: {session.ipMetadata?.isProxy == null ? '—' : session.ipMetadata.isProxy ? 'Yes' : 'No'} · VPN: {session.ipMetadata?.isVpn == null ? '—' : session.ipMetadata.isVpn ? 'Yes' : 'No'} · Fraud score: {session.ipMetadata?.fraudScore == null ? '—' : session.ipMetadata.fraudScore}</small></div>)}{!sessions.some((session) => session.ipMetadata) && <div className="timeline-empty">Detailed IP intelligence appears after consent.</div>}</div></div> }
+const customLocationIcon = L.icon({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+function MapPanel({ sessions }) {
+  const [Map, setMap] = React.useState(null);
 
+  React.useEffect(() => {
+    import('react-leaflet').then(setMap);
+  }, []);
+
+  const point = sessions.find((s) => s.gps)?.gps;
+
+  return (
+    <div className="panel map-panel">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">LOCATION LAYER</p>
+          <h2>Consent map</h2>
+        </div>
+        <MapPin size={18} />
+      </div>
+
+      {Map && point ? (
+        <Map.MapContainer
+          center={[point.latitude, point.longitude]}
+          zoom={4}
+          scrollWheelZoom={false}
+          className="map"
+        >
+          <Map.TileLayer
+            attribution="&copy; OpenStreetMap"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <Map.Marker
+  position={[point.latitude, point.longitude]}
+  icon={customLocationIcon}
+>
+            <Map.Popup>GPS-permitted session</Map.Popup>
+          </Map.Marker>
+        </Map.MapContainer>
+      ) : (
+        <div className="map-placeholder">
+          <MapPin size={24} />
+          <span>
+            {sessions.length
+              ? 'Approximate IP locations are shown in the table. GPS appears here only when permitted.'
+              : 'Consent locations will appear here.'}
+          </span>
+        </div>
+      )}
+
+      <div className="map-legend">
+        <span>
+          <i className="legend-dot blue-dot" /> IP approximate
+        </span>
+        <span>
+          <i className="legend-dot orange-dot" /> GPS permitted
+        </span>
+      </div>
+
+      <div className="timeline">
+        <p className="eyebrow">SESSION TIMELINE</p>
+
+        {sessions.slice(0, 3).map((session) => (
+          <div className="timeline-row" key={session.id}>
+            <i className="timeline-dot" />
+
+            <div>
+              <strong>
+                {[
+                  session.ipMetadata?.gpsLocation?.village,
+                  session.ipMetadata?.gpsLocation?.mandal
+                ]
+                  .filter(Boolean)
+                  .join(', ') ||
+                  session.location?.city ||
+                  'Location unavailable'}{' '}
+                signal received
+              </strong>
+
+              <small>
+                {formatDate(session.capturedAt)} ·{' '}
+                {session.deviceType || 'Device unknown'}
+              </small>
+            </div>
+          </div>
+        ))}
+
+        {!sessions.length && (
+          <div className="timeline-empty">
+            Consent events will appear here in real time.
+          </div>
+        )}
+      </div>
+
+      <div className="ip-intelligence">
+        <p className="eyebrow">IP INTELLIGENCE</p>
+
+        {sessions
+          .filter((session) => session.ipMetadata)
+          .slice(0, 3)
+          .map((session) => {
+            const locationText =
+              session.locationLabel || 'Location unavailable';
+
+            const locationMatch = locationText.match(
+              /1\.\s*Location:\s*Village:\s*(.*?)\s+Mandal:\s*(.*?)\s+District:\s*(.*?)\s+State:\s*(.*?)\s+Country:\s*(.*)$/i
+            );
+
+            const formattedLocation = locationMatch
+              ? [
+                  '1. Location:',
+                  `   Village: ${locationMatch[1]}`,
+                  `   Mandal: ${locationMatch[2]}`,
+                  `   District: ${locationMatch[3]}`,
+                  `   State: ${locationMatch[4]}`,
+                  `   Country: ${locationMatch[5]}`
+                ].join('\n')
+              : locationText;
+
+            const locationItems = formattedLocation
+              .split(/\s(?=\d+\.\s)/)
+              .map((item) => item.trim())
+              .filter(Boolean);
+
+            return (
+              <div
+                className="ip-intelligence-row"
+                key={session.id}
+              >
+                <strong>{session.ip || 'IP unavailable'}</strong>
+
+                <div className="ip-intelligence-details">
+                  {locationItems.map((item, index) => {
+                    const locationLines = item.split('\n');
+
+                    return (
+                      <div
+                        className="ip-detail-item"
+                        key={index}
+                      >
+                        {locationLines.map((line, lineIndex) => (
+                          <div key={lineIndex}>
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <small>
+                  ISP: {session.ipMetadata?.isp || '—'} · ASN:{' '}
+                  {session.ipMetadata?.asn || '—'} · District:{' '}
+                  {session.ipMetadata?.district || '—'} · ZIP:{' '}
+                  {session.ipMetadata?.zipCode || '—'}
+                </small>
+
+                <small>
+                  Timezone:{' '}
+                  {session.ipMetadata?.timeZone ||
+                    session.timeZone ||
+                    '—'}{' '}
+                  · Network:{' '}
+                  {session.ipMetadata?.netSpeed || '—'} · Usage:{' '}
+                  {session.ipMetadata?.usageType || '—'}
+                </small>
+
+                <small>
+                  Proxy:{' '}
+                  {session.ipMetadata?.isProxy == null
+                    ? '—'
+                    : session.ipMetadata.isProxy
+                    ? 'Yes'
+                    : 'No'}{' '}
+                  · VPN:{' '}
+                  {session.ipMetadata?.isVpn == null
+                    ? '—'
+                    : session.ipMetadata.isVpn
+                    ? 'Yes'
+                    : 'No'}{' '}
+                  · Fraud score:{' '}
+                  {session.ipMetadata?.fraudScore == null
+                    ? '—'
+                    : session.ipMetadata.fraudScore}
+                </small>
+              </div>
+            );
+          })}
+
+        {!sessions.some((session) => session.ipMetadata) && (
+          <div className="timeline-empty">
+            Detailed IP intelligence appears after consent.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 const browserFetch = window.fetch.bind(window);
 window.fetch = async (input, init = {}) => {
 	const url = typeof input === 'string' ? input : input.url;

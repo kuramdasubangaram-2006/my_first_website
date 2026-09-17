@@ -1,2 +1,46 @@
-.ip-intelligence-row > span { display: block; white-space: pre-line; line-height: 1.7; margin-top: 6px; }
-.ip-intelligence-row > small { display: none; }
+.ip-intelligence-row > span {
+  display: block;
+  white-space: pre-line;
+  line-height: 1.7;
+  margin-top: 6px;
+}
+
+.ip-intelligence-row > small {
+  display: none;
+}
+/* IP Intelligence UI */
+.ip-intelligence {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ip-intelligence-row {
+  padding: 20px;
+  margin-top: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ip-intelligence-row > strong {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 14px;
+  letter-spacing: 0.02em;
+}
+
+.ip-intelligence-details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ip-detail-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  line-height: 1.6;
+}
