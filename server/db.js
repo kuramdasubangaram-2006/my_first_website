@@ -64,6 +64,28 @@ export async function createUser(email, password, role = 'user') {
     throw error;
   }
 }
+export async function resetUserPassword(email, newPassword) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  if (!pool) {
+    const user = users.get(normalizedEmail);
+    if (!user) return false;
+
+    user.password_hash = passwordHash;
+    users.set(normalizedEmail, user);
+    return true;
+  }
+
+  await schemaReady;
+
+  const result = await pool.query(
+    'UPDATE users SET password_hash=$1 WHERE email=$2',
+    [passwordHash, normalizedEmail]
+  );
+
+  return result.rowCount > 0;
+}
 
 export async function authenticateUser(email, password) {
   await schemaReady;

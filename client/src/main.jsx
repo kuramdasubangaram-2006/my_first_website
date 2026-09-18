@@ -164,35 +164,265 @@ function Dashboard() {
 	return authed ? <Admin setAuthed={() => setAuthed(false)} /> : <Login onLogin={() => setAuthed(true)} />;
 }
 function Login({ onLogin }) {
-	const [registering, setRegistering] = React.useState(false);
+  const [registering, setRegistering] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
-	const [form, setForm] = React.useState({ email: '', password: '' });
-	const [error, setError] = React.useState('');
-	const submit = async (e) => {
-		e.preventDefault();
-		try {
-			const data = await api(registering ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify(form) });
-			localStorage.setItem('adminToken', data.token);
-			onLogin();
-		} catch (e) { setError(e.message); }
-	};
-	return <main className="login-shell"><div className="login-visual"><div className="brand-row"><div className="brand-mark"><Radio size={22}/></div><p className="eyebrow">PRIVACY OPERATIONS</p></div><h1>Consent, made <span>visible.</span></h1><p>A clear, privacy-first dashboard for consent signals.</p><small className="login-version">Consent Signal • v1.0</small></div><form className="login-card" onSubmit={submit}><div className="developer-badge">KB</div><small className="developer-credit">Developed by <span>Mr KB</span></small><div className="eyebrow"><LockKeyhole size={16}/> PRIVATE DASHBOARD</div><h2>{registering ? 'Create account' : 'Sign in'}</h2><label>Email<input type="email" required value={form.email} onChange={(e) => setForm({...form, email: e.target.value})}/></label><label>Password<div className="password-field">
-  <input
-    type={showPassword ? 'text' : 'password'}
-    required
-    minLength={10}
-    value={form.password}
-    onChange={(e) => setForm({...form, password: e.target.value})}
-  />
-  <button
-    type="button"
-    className="password-toggle"
-    onClick={() => setShowPassword(!showPassword)}
-    aria-label={showPassword ? 'Hide password' : 'Show password'}
-  >
-    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-  </button>
-</div></label>{error && <p className="error">{error}</p>}<button className="primary">{registering ? 'Create account' : 'Enter dashboard'} <ChevronRight size={18}/></button><button type="button" className="secondary" onClick={() => { setRegistering(!registering); setError(''); }}>{registering ? 'Back to sign in' : 'Create a user account'}</button><small>Each account can access only the tracking links and sessions it owns.</small></form></main>;
+  const [forgotPassword, setForgotPassword] = React.useState(false);
+  const [form, setForm] = React.useState({ email: '', password: '' });
+  const [error, setError] = React.useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const data = await api(
+        registering ? '/auth/register' : '/auth/login',
+        {
+          method: 'POST',
+          body: JSON.stringify(form)
+        }
+      );
+
+      localStorage.setItem('adminToken', data.token);
+      onLogin();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const resetPassword = async (e) => {
+    e.preventDefault();
+
+    try {
+      await api('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      });
+
+      setError('');
+      setForgotPassword(false);
+      setForm({ email: form.email, password: '' });
+
+      alert('Password updated successfully. You can now sign in.');
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  return (
+    <main className="login-shell">
+      <div className="login-visual">
+        <div className="brand-row">
+          <div className="brand-mark">
+            <Radio size={22} />
+          </div>
+          <p className="eyebrow">PRIVACY OPERATIONS</p>
+        </div>
+
+        <h1>
+          Consent, made <span>visible.</span>
+        </h1>
+
+        <p>A clear, privacy-first dashboard for consent signals.</p>
+
+        <small className="login-version">
+          Consent Signal • v1.0
+        </small>
+      </div>
+
+      <form
+        className="login-card"
+        onSubmit={forgotPassword ? resetPassword : submit}
+      >
+        <div className="developer-badge">KB</div>
+
+        <small className="developer-credit">
+          Developed by <span>Mr KB</span>
+        </small>
+
+        <div className="eyebrow">
+          <LockKeyhole size={16} /> PRIVATE DASHBOARD
+        </div>
+
+        {forgotPassword ? (
+          <>
+            <h2>Reset password</h2>
+
+            <label>
+              Email
+              <input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    email: e.target.value
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              New password
+              <div className="password-field">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={10}
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      password: e.target.value
+                    })
+                  }
+                />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword(!showPassword)
+                  }
+                  aria-label={
+                    showPassword
+                      ? 'Hide password'
+                      : 'Show password'
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </label>
+
+            {error && <p className="error">{error}</p>}
+
+            <button type="submit" className="primary">
+              Update password <ChevronRight size={18} />
+            </button>
+
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setForgotPassword(false);
+                setError('');
+                setForm({
+                  email: form.email,
+                  password: ''
+                });
+              }}
+            >
+              Back to sign in
+            </button>
+          </>
+        ) : (
+          <>
+            <h2>
+              {registering ? 'Create account' : 'Sign in'}
+            </h2>
+
+            <label>
+              Email
+              <input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    email: e.target.value
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              Password
+              <div className="password-field">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={10}
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      password: e.target.value
+                    })
+                  }
+                />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword(!showPassword)
+                  }
+                  aria-label={
+                    showPassword
+                      ? 'Hide password'
+                      : 'Show password'
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </label>
+
+            {error && <p className="error">{error}</p>}
+
+            <button className="primary">
+              {registering
+                ? 'Create account'
+                : 'Enter dashboard'}
+              <ChevronRight size={18} />
+            </button>
+
+            {!registering && (
+              <button
+                type="button"
+                className="forgot-password"
+                onClick={() => {
+                  setForgotPassword(true);
+                  setError('');
+                  setShowPassword(false);
+                }}
+              >
+                Forgot password?
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setRegistering(!registering);
+                setError('');
+              }}
+            >
+              {registering
+                ? 'Back to sign in'
+                : 'Create a user account'}
+            </button>
+
+            <small>
+              Each account can access only the tracking links
+              and sessions it owns.
+            </small>
+          </>
+        )}
+      </form>
+    </main>
+  );
 }
 function Admin({ setAuthed }) {
   const [sessions, setSessions] = React.useState([]);

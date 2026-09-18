@@ -10,8 +10,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
-import { authenticateUser, createSession, createUser, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';
-dotenv.config();
+import { authenticateUser, createSession, createUser, resetUserPassword, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
 const app = express();app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
@@ -141,7 +140,23 @@ const lookupGpsLocation = async (latitude, longitude) => {
   }
 };
 app.post('/api/auth/register', async (req, res) => { const { email, password } = req.body || {}; if (!email || typeof password !== 'string' || password.length < 10) return res.status(400).json({ error: 'Use an email and a password of at least 10 characters' }); const user = await createUser(email, password); if (!user) return res.status(409).json({ error: 'An account with that email already exists' }); res.status(201).json({ token: jwt.sign({ sub: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '8h' }) }); });
-app.post('/api/auth/login', async (req, res) => { const { email, password } = req.body || {}; if (!email || typeof password !== 'string') return res.status(401).json({ error: 'Invalid credentials' }); const user = await authenticateUser(email, password); if (!user) return res.status(401).json({ error: 'Invalid credentials' }); res.json({ token: jwt.sign({ sub: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '8h' }), role: user.role }); });
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email, newPassword } = req.body || {};
+
+  if (!email || typeof newPassword !== 'string' || newPassword.length < 10) {
+    return res.status(400).json({
+      error: 'Email and a password of at least 10 characters are required'
+    });
+  }
+
+  const updated = await resetUserPassword(email, newPassword);
+
+  if (!updated) {
+    return res.status(404).json({ error: 'User account not found' });
+  }
+
+  res.json({ status: 'password-updated' });
+});
 app.post('/api/tracking-links', auth, async (req, res) => { const token = crypto.randomBytes(24).toString('base64url'); await createSession(hashToken(token), req.user.id); res.status(201).json({ token, path: `/track/${token}` }); });
 app.get('/api/tracking/:token', async (req, res) => { const session = await getSession(hashToken(req.params.token)); if (!session) return res.status(404).json({ error: 'Tracking link not found' }); res.json({ id: session.id, status: session.consent_status }); });
 app.post('/api/tracking/:token/consent', async (req, res) => { const tokenHash = hashToken(req.params.token); const session = await getSession(tokenHash); if (!session) return res.status(404).json({ error: 'Tracking link not found' }); const payload = req.body || {}; const ua = req.get('user-agent'); const forwardedFor = req.headers['x-forwarded-for'];
