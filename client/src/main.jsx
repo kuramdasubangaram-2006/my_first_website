@@ -195,7 +195,10 @@ function Login({ onLogin }) {
     try {
       await api('/auth/forgot-password', {
         method: 'POST',
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+  email: form.email,
+  newPassword: form.password
+})
       });
 
       setError('');
