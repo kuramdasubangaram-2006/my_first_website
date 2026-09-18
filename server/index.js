@@ -139,7 +139,32 @@ const lookupGpsLocation = async (latitude, longitude) => {
     return {};
   }
 };
-app.post('/api/auth/register', async (req, res) => { const { email, password } = req.body || {}; if (!email || typeof password !== 'string' || password.length < 10) return res.status(400).json({ error: 'Use an email and a password of at least 10 characters' }); const user = await createUser(email, password); if (!user) return res.status(409).json({ error: 'An account with that email already exists' }); res.status(201).json({ token: jwt.sign({ sub: user.id, email: user.email, role: user.role }, jwtSecret, { expiresIn: '8h' }) }); });
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || typeof password !== 'string') {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  const user = await authenticateUser(email, password);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  res.json({
+    token: jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role
+      },
+      jwtSecret,
+      { expiresIn: '8h' }
+    ),
+    role: user.role
+  });
+});
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email, newPassword } = req.body || {};
 
