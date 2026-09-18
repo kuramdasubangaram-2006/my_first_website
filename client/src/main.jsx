@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { io } from 'socket.io-client';
 import L from 'leaflet';
-import { ShieldCheck, MapPin, MonitorSmartphone, Globe2, Clock3, Trash2, Plus, Search, LockKeyhole, Radio, LogOut, ExternalLink, ChevronRight } from 'lucide-react';
+import { ShieldCheck, MapPin, MonitorSmartphone, Globe2, Clock3, Trash2, Plus, Search, LockKeyhole, Radio, LogOut, ExternalLink, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
 import './timeline.css';
