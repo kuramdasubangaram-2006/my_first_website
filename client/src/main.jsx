@@ -556,7 +556,7 @@ s.ipMetadata?.gpsLocation?.district || '',
             <Radio size={18} />
           </div>
           <span>
-            CONSENT <b>SIGNAL</b>
+            INFORMATION <b>KB</b>
           </span>
         </div>
 
