@@ -1558,6 +1558,34 @@ td small{
 
   letter-spacing:.02em;
 }
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: #71808d;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: #cbd5e1;
+}
 
 /* =========================================================
    LOGIN INPUTS
