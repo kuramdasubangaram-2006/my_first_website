@@ -328,6 +328,9 @@ function Login({ onLogin }) {
   const [registering, setRegistering] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [forgotPassword, setForgotPassword] = React.useState(false);
+  const [otpSent, setOtpSent] = React.useState(false);
+  const [otp, setOtp] = React.useState('');
+  const [otpVerified, setOtpVerified] = React.useState(false);
   const [form, setForm] = React.useState({ email: '', password: '' });
   const [error, setError] = React.useState('');
 
@@ -349,12 +352,46 @@ function Login({ onLogin }) {
       setError(e.message);
     }
   };
+const sendOtp = async (e) => {
+  e.preventDefault();
 
+  try {
+    await api('/auth/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: form.email
+      })
+    });
+
+    setError('');
+    setOtpSent(true);
+  } catch (e) {
+    setError(e.message);
+  }
+};
+const verifyOtp = async (e) => {
+  e.preventDefault();
+
+  try {
+    await api('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: form.email,
+        otp
+      })
+    });
+
+    setError('');
+    setOtpVerified(true);
+  } catch (e) {
+    setError(e.message);
+  }
+};
   const resetPassword = async (e) => {
     e.preventDefault();
 
     try {
-      await api('/auth/forgot-password', {
+      await api('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify({
   email: form.email,
@@ -365,6 +402,8 @@ function Login({ onLogin }) {
       setError('');
       setForgotPassword(false);
       setForm({ email: form.email, password: '' });
+      setOtpSent(false);
+      setOtpVerified(false);
 
       alert('Password updated successfully. You can now sign in.');
     } catch (e) {
@@ -425,7 +464,38 @@ function Login({ onLogin }) {
                 }
               />
             </label>
+            {!otpSent && (
+  <button type="button" className="primary" onClick={sendOtp}>
+    Send OTP <ChevronRight size={18} />
+  </button>
+)}
 
+{otpSent && (
+  <label>
+    OTP
+    <input
+      type="text"
+      inputMode="numeric"
+      maxLength={6}
+      required
+      value={otp}
+      onChange={(e) =>
+        setOtp(e.target.value.replace(/\D/g, ''))
+      }
+    />
+  </label>
+)}
+
+{otpSent && !otpVerified && (
+  <button
+    type="button"
+    className="primary"
+    onClick={verifyOtp}
+  >
+    Verify OTP <ChevronRight size={18} />
+  </button>
+)}
+           {otpVerified && (
             <label>
               New password
               <div className="password-field">
@@ -462,24 +532,28 @@ function Login({ onLogin }) {
                 </button>
               </div>
             </label>
+            )}
 
             {error && <p className="error">{error}</p>}
 
+           {otpVerified && (
             <button type="submit" className="primary">
-              Update password <ChevronRight size={18} />
+            Update password <ChevronRight size={18} />
             </button>
-
+           )}
             <button
               type="button"
               className="secondary"
               onClick={() => {
-                setForgotPassword(false);
-                setError('');
-                setForm({
-                  email: form.email,
-                  password: ''
-                });
-              }}
+              setForgotPassword(false);
+              setError('');
+              setOtpSent(false);
+              setOtpVerified(false);
+              setForm({
+              email: form.email,
+              password: ''
+              });
+            }}
             >
               Back to sign in
             </button>

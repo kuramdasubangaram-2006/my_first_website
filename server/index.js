@@ -4,14 +4,21 @@ import { isIP } from 'node:net';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import dotenv from 'dotenv';
+import { Resend } from 'resend';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
-import { authenticateUser, createSession, createUser, resetUserPassword, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';dotenv.config();
+import { authenticateUser, createSession, createUser, resetUserPassword, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';
+dotenv.config();
+const resend = new Resend(process.env.RESEND_API_KEY);
+const generateOtp = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
 const jwtSecret = process.env.JWT_SECRET;
+const passwordResetOtps = new Map();
 if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
 const app = express();app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
 app.set('trust proxy', 1);
@@ -179,6 +186,92 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   if (!updated) {
     return res.status(404).json({ error: 'User account not found' });
   }
+
+  res.json({ status: 'password-updated' });
+});
+app.post('/api/auth/send-otp', async (req, res) => {
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const otp = generateOtp();
+
+  passwordResetOtps.set(email.toLowerCase(), {
+    otp,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  });
+
+  await resend.emails.send({
+    from: 'Information KB <onboarding@resend.dev>',
+    to: email,
+    subject: 'Information KB Password Reset OTP',
+    text: `Your password reset OTP is: ${otp}. This OTP is valid for 10 minutes.`
+  });
+
+  res.json({ status: 'otp-sent' });
+});
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body || {};
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP are required' });
+  }
+
+  const key = email.toLowerCase();
+  const record = passwordResetOtps.get(key);
+
+  if (!record) {
+    return res.status(400).json({ error: 'OTP not found or expired' });
+  }
+
+  if (Date.now() > record.expiresAt) {
+    passwordResetOtps.delete(key);
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+
+  if (record.otp !== String(otp)) {
+    return res.status(400).json({ error: 'Invalid OTP' });
+  }
+
+  passwordResetOtps.set(key, {
+    ...record,
+    verified: true
+  });
+
+  res.json({ status: 'otp-verified' });
+});
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, newPassword } = req.body || {};
+
+  if (!email || typeof newPassword !== 'string' || newPassword.length < 10) {
+    return res.status(400).json({
+      error: 'Email and a password of at least 10 characters are required'
+    });
+  }
+
+  const key = email.toLowerCase();
+  const record = passwordResetOtps.get(key);
+
+  if (!record || !record.verified) {
+    return res.status(403).json({
+      error: 'Please verify the OTP first'
+    });
+  }
+
+  if (Date.now() > record.expiresAt) {
+    passwordResetOtps.delete(key);
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+
+  const updated = await resetUserPassword(email, newPassword);
+
+  if (!updated) {
+    return res.status(404).json({ error: 'User account not found' });
+  }
+
+  passwordResetOtps.delete(key);
 
   res.json({ status: 'password-updated' });
 });
