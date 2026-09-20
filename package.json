@@ -21,6 +21,7 @@
     "leaflet": "^1.9.4",
     "morgan": "^1.10.0",
     "pg": "^8.13.1",
+    "resend": "^6.28.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "uuid": "^11.0.5"
