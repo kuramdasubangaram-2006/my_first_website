@@ -11,7 +11,8 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
-import { authenticateUser, createSession, createUser, resetUserPassword, getSession, grantConsent, addAuditLog, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';
+import { authenticateUser, createSession, createUser, resetUserPassword, getSession, grantConsent, addAuditLog,addForensicEvidence,
+listForensicEvidence,getSessionForUser, listAuditLogs, declineConsent, listSessions, deleteSession, hashToken, formatSession, cleanupOldData } from './db.js';
 dotenv.config();
 const resend = new Resend(process.env.RESEND_API_KEY);
 const generateOtp = () => {
@@ -23,13 +24,6 @@ if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
 const app = express();app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
 app.set('trust proxy', 1);
 if (process.env.NODE_ENV === 'production') app.use((req, res, next) => req.secure ? next() : res.redirect(`https://${req.headers.host}${req.originalUrl}`));
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })); app.use(cors({
-  origin: [
-  'http://localhost:5173',
-  'https://information-kb.vercel.app'
-
-  ]
-})); app.use(express.json({ limit: '32kb' })); app.use(morgan('tiny'));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 const auth = (req, res, next) => { try { const payload = jwt.verify((req.headers.authorization || '').replace(/^Bearer\s+/i, ''), jwtSecret); if (!payload.sub || !payload.role) throw new Error('Invalid token'); req.user = { id: payload.sub, email: payload.email, role: payload.role }; next(); } catch { res.status(401).json({ error: 'Authentication required' }); } };
 const admin = (req, res, next) => auth(req, res, () => req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Admin authentication required' }));
@@ -283,7 +277,7 @@ storage: payload.storage || null, ...browserInfo(ua), ip_address: geo.ip || look
   ...(geo.metadata || {}),
   gpsLocation
 }, latitude: payload.latitude ?? null,
-longitude: payload.longitude ?? null, screen_resolution: payload.screenResolution || null, time_zone: payload.timeZone || geo.metadata?.timeZone || null, language: payload.language || null, referrer: payload.referrer || null }; const updated = await grantConsent(tokenHash, data);await addAuditLog('CONSENT_GRANTED', updated.id); const output = formatSession(updated); io.emit('session:updated'); res.json(output); });
+longitude: payload.longitude ?? null, screen_resolution: payload.screenResolution || null, time_zone: payload.timeZone || geo.metadata?.timeZone || null, language: payload.language || null, referrer: payload.referrer || null }; const updated = await grantConsent(tokenHash, data);await addForensicEvidence(updated.id, 'CONSENT_DATA', data);await addAuditLog('CONSENT_GRANTED', updated.id); const output = formatSession(updated); io.emit('session:updated'); res.json(output); });
 app.post('/api/tracking/:token/decline', async (req, res) => {
   const updated = await declineConsent(hashToken(req.params.token));
   if (!updated) return res.status(404).json({ error: 'Tracking link not found' });
@@ -303,6 +297,25 @@ app.get('/api/audit-logs', auth, async (req, res) => {
   
   const logs = await listAuditLogs(req.user.id, req.user.role === 'admin');
   res.json(logs);
+});
+app.get('/api/forensic-evidence/:sessionId', auth, async (req, res) => {
+  try {
+    const session = await getSessionForUser(
+      req.params.sessionId,
+      req.user.id,
+      req.user.role === 'admin'
+    );
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const evidence = await listForensicEvidence(req.params.sessionId);
+    res.json(evidence);
+  } catch (error) {
+    console.error('Forensic evidence error:', error);
+    res.status(500).json({ error: 'Failed to load forensic evidence' });
+  }
 });
 
 app.delete('/api/sessions/:id', auth, async (req, res) => { await deleteSession(req.params.id, req.user.id, req.user.role === 'admin'); res.status(204).end(); });

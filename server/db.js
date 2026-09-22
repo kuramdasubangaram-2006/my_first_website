@@ -26,6 +26,20 @@ async function initializeDatabase() {
   await pool.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tracking_sessions_owner_id_fkey') THEN ALTER TABLE tracking_sessions ADD CONSTRAINT tracking_sessions_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE; END IF; END $$`);
   await pool.query('CREATE INDEX IF NOT EXISTS tracking_sessions_owner_id_idx ON tracking_sessions (owner_id)');
   await pool.query(`CREATE TABLE IF NOT EXISTS audit_logs (id SERIAL PRIMARY KEY, action TEXT NOT NULL, session_id UUID, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS forensic_evidence (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+  evidence_type TEXT NOT NULL,
+  evidence_data JSONB NOT NULL,
+  evidence_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`);
+
+await pool.query(`CREATE INDEX IF NOT EXISTS forensic_evidence_session_id_idx
+  ON forensic_evidence (session_id)`);
+
+await pool.query(`CREATE INDEX IF NOT EXISTS forensic_evidence_created_at_idx
+  ON forensic_evidence (created_at DESC)`);
 }
 
 async function initializeMemory() {
@@ -34,6 +48,11 @@ async function initializeMemory() {
 }
 
 export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+export const hashEvidence = (evidenceData) =>
+  crypto
+    .createHash('sha256')
+    .update(JSON.stringify(evidenceData))
+    .digest('hex');
 export const encrypt = (value) => {
   if (!value || !key || key.length !== 32) return value || null;
   const iv = crypto.randomBytes(12); const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -131,6 +150,73 @@ export async function addAuditLog(action, sessionId) {
     'INSERT INTO audit_logs (action, session_id) VALUES ($1, $2)',
     [action, sessionId]
   );
+}
+export async function addForensicEvidence(sessionId, evidenceType, evidenceData) {
+  const evidenceHash = hashEvidence(evidenceData);
+
+  if (!pool) {
+    return {
+      id: crypto.randomUUID(),
+      session_id: sessionId,
+      evidence_type: evidenceType,
+      evidence_data: evidenceData,
+      evidence_hash: evidenceHash,
+      created_at: new Date().toISOString()
+    };
+  }
+
+  const result = await pool.query(
+    `INSERT INTO forensic_evidence
+      (session_id, evidence_type, evidence_data, evidence_hash)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [sessionId, evidenceType, JSON.stringify(evidenceData), evidenceHash]
+  );
+
+  return result.rows[0];
+}
+export async function getSessionForUser(sessionId, userId, isAdmin = false) {
+  if (!pool) {
+    for (const session of memory.values()) {
+      if (
+        session.id === sessionId &&
+        (isAdmin || session.owner_id === userId)
+      ) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  await schemaReady;
+
+  const query = isAdmin
+    ? 'SELECT * FROM tracking_sessions WHERE id = $1'
+    : 'SELECT * FROM tracking_sessions WHERE id = $1 AND owner_id = $2';
+
+  const { rows } = await pool.query(
+    query,
+    isAdmin ? [sessionId] : [sessionId, userId]
+  );
+
+  return rows[0] || null;
+}
+export async function listForensicEvidence(sessionId) {
+  if (!pool) {
+    return [];
+  }
+
+  await schemaReady;
+
+  const result = await pool.query(
+    `SELECT *
+     FROM forensic_evidence
+     WHERE session_id = $1
+     ORDER BY created_at DESC`,
+    [sessionId]
+  );
+
+  return result.rows;
 }
 export async function listAuditLogs(userId, isAdmin = false) {
   if (!pool) {

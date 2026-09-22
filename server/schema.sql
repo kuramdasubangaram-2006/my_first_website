@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS tracking_sessions (
   screen_resolution TEXT,
   time_zone TEXT,
   language TEXT,
-  referrer TEXT
+  referrer TEXT,
   ram TEXT,
   storage JSONB
 );
@@ -43,3 +43,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   session_id INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS forensic_evidence (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+  evidence_type TEXT NOT NULL,
+  evidence_data JSONB NOT NULL,
+  evidence_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS forensic_evidence_session_id_idx
+  ON forensic_evidence (session_id);
+
+CREATE INDEX IF NOT EXISTS forensic_evidence_created_at_idx
+  ON forensic_evidence (created_at DESC);

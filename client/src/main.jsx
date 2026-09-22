@@ -664,6 +664,8 @@ const verifyOtp = async (e) => {
 }
 function Admin({ setAuthed }) {
   const [sessions, setSessions] = React.useState([]);
+  const [selectedForensicSession, setSelectedForensicSession] = React.useState('');
+  const [forensicEvidence, setForensicEvidence] = React.useState([]);
   const [auditLogs, setAuditLogs] = React.useState([]);
   const [search, setSearch] = React.useState('');
   const [link, setLink] = React.useState('');
@@ -747,6 +749,19 @@ s.ipMetadata?.gpsLocation?.district || '',
         }),
     [search, setAuthed]
   );
+    React.useEffect(() => {
+    if (!selectedForensicSession) {
+      setForensicEvidence([]);
+      return;
+    }
+
+    api(`/forensic-evidence/${selectedForensicSession}`)
+  .then(setForensicEvidence)
+  .catch((error) => {
+    console.error('Forensic evidence error:', error);
+    setForensicEvidence([]);
+  });
+  }, [selectedForensicSession]);
 
   const loadAuditLogs = React.useCallback(
     () => api('/audit-logs').then(setAuditLogs).catch(() => {}),
@@ -1019,6 +1034,58 @@ s.ipMetadata?.gpsLocation?.district || '',
           </aside>
         </div>
 
+                <section className="panel forensic-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">FORENSIC INTEGRITY</p>
+              <h2>Forensic Evidence</h2>
+            </div>
+          </div>
+
+                  <div className="forensic-list">
+            {!selectedForensicSession && (
+              <div className="timeline-empty">
+                Select a session to view forensic evidence.
+              </div>
+            )}
+
+            {selectedForensicSession && !forensicEvidence.length && (
+              <div className="timeline-empty">
+                No forensic evidence recorded for this session.
+              </div>
+            )}
+
+            {forensicEvidence.map((evidence) => (
+              <div className="forensic-evidence-row" key={evidence.id}>
+                <div>
+                  <strong>{evidence.evidence_type}</strong>
+                  <small>{formatDate(evidence.created_at)}</small>
+                </div>
+
+                <code>{evidence.evidence_hash}</code>
+              </div>
+            ))}
+          </div>
+         <div className="forensic-controls">
+  <label htmlFor="forensic-session">
+    Session
+  </label>
+
+  <select
+    id="forensic-session"
+    value={selectedForensicSession}
+    onChange={(e) => setSelectedForensicSession(e.target.value)}
+  >
+    <option value="">Select a session</option>
+
+    {sessions.map((session) => (
+      <option key={session.id} value={session.id}>
+        #{session.id.slice(0, 8)}
+      </option>
+    ))}
+  </select>
+</div>
+        </section>
         <section className="panel audit-panel">
           <div className="panel-heading">
             <div>
