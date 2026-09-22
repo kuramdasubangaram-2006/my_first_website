@@ -21,7 +21,16 @@ const generateOtp = () => {
 const jwtSecret = process.env.JWT_SECRET;
 const passwordResetOtps = new Map();
 if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
-const app = express();app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
+const app = express();
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'https://information-kb.vercel.app'
+  ]
+}));
+app.set('trust proxy', 1); const server = http.createServer(app); const io = new Server(server, { cors: { origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' } });
 app.set('trust proxy', 1);
 if (process.env.NODE_ENV === 'production') app.use((req, res, next) => req.secure ? next() : res.redirect(`https://${req.headers.host}${req.originalUrl}`));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }));
