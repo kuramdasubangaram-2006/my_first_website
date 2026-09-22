@@ -22,6 +22,7 @@ const jwtSecret = process.env.JWT_SECRET;
 const passwordResetOtps = new Map();
 if (!jwtSecret) throw new Error('JWT_SECRET must be configured');
 const app = express();
+app.use(express.json());
 app.use(cors({
   origin: [
     'http://localhost:5173',
