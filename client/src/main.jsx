@@ -1062,7 +1062,10 @@ s.ipMetadata?.gpsLocation?.district || '',
                   <small>{formatDate(evidence.created_at)}</small>
                 </div>
 
+                <div>
+                <small>SHA-256</small>
                 <code>{evidence.evidence_hash}</code>
+              </div>
               </div>
             ))}
           </div>
