@@ -110,7 +110,8 @@ export async function authenticateUser(email, password) {
   await schemaReady;
   const normalizedEmail = String(email).trim().toLowerCase();
   const user = pool ? (await pool.query('SELECT id, email, password_hash, role FROM users WHERE email=$1', [normalizedEmail])).rows[0] : users.get(normalizedEmail);
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) return null;
+  console.log('LOGIN USER FOUND:', !!user, 'EMAIL:', normalizedEmail);
+if (!user || !(await bcrypt.compare(password, user.password_hash))) return null;
   return { id: user.id, email: user.email, role: user.role };
 }
 
