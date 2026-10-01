@@ -2043,19 +2043,44 @@ td small{
   transform:scale(1.08);
   box-shadow:0 0 32px rgba(34,211,238,.55);
 }
-.developer-credit{
-  position:absolute;
-  top:64px;
-  right:18px;
-  color:#7dd3fc;
-  font-size:10px;
-  letter-spacing:.06em;
-  white-space:nowrap;
+.developer-credit {
+  position: absolute;
+  top: 62px;
+  right: 18px;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  white-space: nowrap;
 }
 
+.developer-credit a {
+  color: #a8ff12;
+  font-weight: 800;
+  text-decoration: none;
+}
 .developer-credit span{
   color:#a8ff12;
   font-weight:700;
+}
+.developer-guidance {
+  position: absolute;
+  top: 82px;
+  right: 18px;
+  color: #7dd3fc;
+  font-size: 10px;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.developer-guidance a {
+  color: #a8ff12;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.developer-guidance a:hover {
+  text-decoration: underline;
 }
 /* Audit Logs UI */
 .audit-list {

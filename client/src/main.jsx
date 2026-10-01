@@ -439,8 +439,25 @@ const verifyOtp = async (e) => {
         <div className="developer-badge">KB</div>
 
         <small className="developer-credit">
-          Developed by <span>Mr KB</span>
-        </small>
+  Developed by{' '}
+  <a
+    href="https://www.linkedin.com/in/bangaram-kuramdasu/"
+    target="_blank"
+    rel="noreferrer"
+  >
+    Mr KB
+  </a>
+</small>
+<small className="developer-guidance">
+  Under the guidance of{' '}
+  <a
+    href="https://www.linkedin.com/in/shanthan-5386a5112/"
+    target="_blank"
+    rel="noreferrer"
+  >
+    Sai Shantan
+  </a>
+</small>
 
         <div className="eyebrow">
           <LockKeyhole size={16} /> PRIVATE DASHBOARD
