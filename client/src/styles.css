@@ -2059,6 +2059,12 @@ td small{
   font-weight: 800;
   text-decoration: none;
 }
+.developer-credit a:hover {
+  text-decoration: underline;
+  transform: translateY(-2px);
+  display: inline-block;
+  text-shadow: 0 0 8px currentColor;
+}
 .developer-credit span{
   color:#a8ff12;
   font-weight:700;
@@ -2081,6 +2087,9 @@ td small{
 
 .developer-guidance a:hover {
   text-decoration: underline;
+  transform: translateY(-2px);
+  display: inline-block;
+  text-shadow: 0 0 8px currentColor;
 }
 /* Audit Logs UI */
 .audit-list {
