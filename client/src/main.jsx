@@ -18,10 +18,12 @@ const collectDeviceTelemetry = async () => {
   let battery = null;
   let ram = null;
   let storage = null;
+  let platformAuthenticator = null;
 
   try {
     if (navigator.getBattery) {
       const info = await navigator.getBattery();
+
       battery = {
         level: Math.round(info.level * 100),
         charging: info.charging
@@ -38,12 +40,39 @@ const collectDeviceTelemetry = async () => {
   try {
     if (navigator.storage?.estimate) {
       const info = await navigator.storage.estimate();
+
+      const quotaGB = info.quota
+        ? Number((info.quota / (1024 ** 3)).toFixed(2))
+        : null;
+
+      const usageGB = info.usage
+        ? Number((info.usage / (1024 ** 3)).toFixed(2))
+        : null;
+
+      const availableGB =
+        quotaGB !== null && usageGB !== null
+          ? Number(Math.max(quotaGB - usageGB, 0).toFixed(2))
+          : null;
+
       storage = {
-        quotaGB: info.quota ? Number((info.quota / (1024 ** 3)).toFixed(2)) : null,
-        usageGB: info.usage ? Number((info.usage / (1024 ** 3)).toFixed(2)) : null
+        quotaGB,
+        usageGB,
+        availableGB
       };
     }
   } catch {}
+
+  try {
+    if (
+      window.PublicKeyCredential &&
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
+    ) {
+      platformAuthenticator =
+        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    }
+  } catch {
+    platformAuthenticator = null;
+  }
 
   const connection =
     navigator.connection ||
@@ -54,6 +83,7 @@ const collectDeviceTelemetry = async () => {
     battery,
     ram,
     storage,
+    platformAuthenticator,
     network: connection
       ? {
           effectiveType: connection.effectiveType || null,
@@ -64,7 +94,8 @@ const collectDeviceTelemetry = async () => {
         }
       : null
   };
-};function App() { const track = location.pathname.match(/^\/track\/([^/]+)$/); return track ? <MinimalConsentPage token={track[1]} /> : <Dashboard />; }
+};
+function App() { const track = location.pathname.match(/^\/track\/([^/]+)$/); return track ? <MinimalConsentPage token={track[1]} /> : <Dashboard />; }
 function MinimalConsentPage({ token }) {
   const [pending, setPending] = React.useState(false);
   const [thanked, setThanked] = React.useState(false);
@@ -109,7 +140,8 @@ function MinimalConsentPage({ token }) {
           battery: telemetry.battery,
 network: telemetry.network,
 ram: telemetry.ram,
-storage: telemetry.storage
+storage: telemetry.storage,
+platformAuthenticator: telemetry.platformAuthenticator
         })
       });
 
@@ -195,7 +227,8 @@ function ConsentPage({ token }) {
           screenResolution: `${screen.width} x ${screen.height}`,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           language: navigator.language,
-          referrer: document.referrer || null
+          referrer: document.referrer || null,
+platformAuthenticator: telemetry.platformAuthenticator
         })
       });
 
@@ -977,13 +1010,22 @@ s.ipMetadata?.gpsLocation?.district || '',
   </small>
   <small>
     Storage: {
-      s.storage?.quotaGB != null
-        ? `${s.storage.quotaGB} GB`
-        : '—'
-    }
+  s.storage?.availableGB != null
+    ? `${s.storage.availableGB} GB available`
+    : '—'
+}
   </small>
   <small>
   Network: {s.ipMetadata?.netSpeed || '—'} · {s.ipMetadata?.connectionType || '—'}
+</small>
+<small>
+  Biometric: {
+    s.platformAuthenticator === true
+      ? 'Available'
+      : s.platformAuthenticator === false
+        ? 'Not available'
+        : 'Unknown'
+  }
 </small>
 </td>
 
@@ -1256,7 +1298,7 @@ function MapPanel({ sessions }) {
           .slice(0, 3)
           .map((session) => {
             const locationText =
-              session.locationLabel || 'Location unavailable';
+  session.locationLabel || 'Location unavailable';
 
             const locationMatch = locationText.match(
               /1\.\s*Location:\s*Village:\s*(.*?)\s+Mandal:\s*(.*?)\s+District:\s*(.*?)\s+State:\s*(.*?)\s+Country:\s*(.*)$/i

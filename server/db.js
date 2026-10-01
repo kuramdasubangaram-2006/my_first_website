@@ -20,6 +20,7 @@ async function initializeDatabase() {
   await pool.query(`CREATE TABLE IF NOT EXISTS tracking_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), token_hash TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), consent_status TEXT NOT NULL DEFAULT 'pending')`);
   await pool.query('ALTER TABLE tracking_sessions ADD COLUMN IF NOT EXISTS owner_id UUID');
   await pool.query('ALTER TABLE tracking_sessions ADD COLUMN IF NOT EXISTS ip_metadata_enc TEXT');
+  await pool.query('ALTER TABLE tracking_sessions ADD COLUMN IF NOT EXISTS platform_authenticator BOOLEAN');
   await pool.query('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, \'admin\') ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role=\'admin\'', [adminEmail, await bcrypt.hash(adminPassword, 12)]);
   await pool.query('UPDATE tracking_sessions SET owner_id = (SELECT id FROM users WHERE email = $1) WHERE owner_id IS NULL', [adminEmail]);
   await pool.query('ALTER TABLE tracking_sessions ALTER COLUMN owner_id SET NOT NULL');
@@ -132,8 +133,8 @@ export async function grantConsent(tokenHash, data) {
   }
   if (!pool) { const session = memory.get(tokenHash); Object.assign(session, data, { consent_status: 'granted', consent_at: timestamp, captured_at: timestamp }); return session; }
   await schemaReady;
-  const values = [timestamp, timestamp, encrypt(data.ip_address), encrypt(data.ip_city), encrypt(data.ip_region), encrypt(data.ip_country), encrypt(data.ip_metadata ? JSON.stringify(data.ip_metadata) : null), encrypt(data.latitude), encrypt(data.longitude), data.browser, data.operating_system, data.device_type, data.screen_resolution, data.time_zone, data.language, data.referrer, data.ram, data.storage,  tokenHash];
-  const { rows } = await pool.query(`UPDATE tracking_sessions SET consent_status='granted', consent_at=$1, captured_at=$2, ip_address_enc=$3, ip_city_enc=$4, ip_region_enc=$5, ip_country_enc=$6, ip_metadata_enc=$7, latitude_enc=$8, longitude_enc=$9, browser=$10, operating_system=$11, device_type=$12, screen_resolution=$13, time_zone=$14, language=$15, referrer=$16, ram=$17, storage=$18 WHERE token_hash=$19 RETURNING *`, values); return rows[0];
+  const values = [timestamp, timestamp, encrypt(data.ip_address), encrypt(data.ip_city), encrypt(data.ip_region), encrypt(data.ip_country), encrypt(data.ip_metadata ? JSON.stringify(data.ip_metadata) : null), encrypt(data.latitude), encrypt(data.longitude), data.browser, data.operating_system, data.device_type, data.screen_resolution, data.time_zone, data.language, data.referrer, data.ram, data.storage, data.platformAuthenticator, tokenHash];
+  const { rows } = await pool.query(`UPDATE tracking_sessions SET consent_status='granted', consent_at=$1, captured_at=$2, ip_address_enc=$3, ip_city_enc=$4, ip_region_enc=$5, ip_country_enc=$6, ip_metadata_enc=$7, latitude_enc=$8, longitude_enc=$9, browser=$10, operating_system=$11, device_type=$12, screen_resolution=$13, time_zone=$14, language=$15, referrer=$16, ram=$17, storage=$18, platform_authenticator=$19 WHERE token_hash=$20 RETURNING *`, values); return rows[0];
 }
 export async function addAuditLog(action, sessionId) {
   if (!pool) {
@@ -282,9 +283,12 @@ export function formatSession(row) {
   if (ipMetadata) ipMetadata = { ...ipMetadata, netSpeed: ipMetadata.netSpeed || ipMetadata.network?.effectiveType || null, usageType: ipMetadata.usageType || (ipMetadata.battery?.level != null ? `Battery ${ipMetadata.battery.level}%${ipMetadata.battery.charging ? ' (charging)' : ''}` : null) };
   if (ipMetadata) ipMetadata = { ...ipMetadata, connectionType: ipMetadata.connectionType || ipMetadata.network?.type || null };
     const detailLabel = ipMetadata ? [`1. Location:\nVillage: ${gpsLocation?.village || '—'}\nMandal: ${gpsLocation?.mandal || '—'}\nDistrict: ${gpsLocation?.district || '—'}\nState: ${gpsLocation?.state || '—'}\nCountry: ${gpsLocation?.country || '—'}`,`2. IP address: ${ip || '—'}`, `3. ISP: ${ipMetadata.isp || '—'}`, `4. ASN: ${ipMetadata.asn || '—'}`, `5. District: ${ipMetadata.district || '—'}`, `6. ZIP code: ${ipMetadata.zipCode || '—'}`, `7. Timezone: ${ipMetadata.timeZone || row.time_zone || '—'}`, `8. Network: ${ipMetadata.netSpeed || '—'}`, `9. Usage: ${ipMetadata.usageType || '—'}`, `10. Battery: ${ipMetadata.battery?.level == null ? '—' : `${ipMetadata.battery.level}% · ${ipMetadata.battery.charging ? 'Charging' : 'Not charging'}`}`, `11. Downlink: ${ipMetadata.network?.downlinkMbps == null ? '—' : `${ipMetadata.network.downlinkMbps} Mbps`}`, `12. RTT: ${ipMetadata.network?.rttMs == null ? '—' : `${ipMetadata.network.rttMs} ms`}`, `13. Proxy: ${ipMetadata.isProxy == null ? '—' : ipMetadata.isProxy ? 'Yes' : 'No'}`, `14. VPN: ${ipMetadata.isVpn == null ? '—' : ipMetadata.isVpn ? 'Yes' : 'No'}`, `15. Fraud score: ${ipMetadata.fraudScore == null ? '—' : ipMetadata.fraudScore}`, `16. Domain: ${ipMetadata.domain || '—'}`, `17. Coordinates: ${latitude != null && longitude != null ? `${Number(decrypt(latitude))}, ${Number(decrypt(longitude))}` : '—'}`, `18. Screen size: ${row.screen_resolution || '—'}`, `19. Language: ${row.language || '—'}`, `20. Browser: ${row.browser || '—'}`, `21. Operating system: ${row.operating_system || '—'}`, `22. Device: ${row.device_type || '—'}`,`23. RAM: ${row.ram || '—'}`,`24. Storage: ${row.storage?.quotaGB != null ? `Browser quota ${row.storage.quotaGB} GB` : '—'}`,
-`25. Connection: ${ipMetadata.connectionType || '—'}`].join('\n') : null;
+`25. Connection: ${ipMetadata.connectionType || '—'}`,`26. Biometric: ${row.platform_authenticator === true ? 'Available' : row.platform_authenticator === false ? 'Not available' : 'Unknown'}`].join('\n') : null;
 const completeDetailLabel = detailLabel;    return { id: row.id, createdAt: row.created_at, consentStatus: row.consent_status, consentAt: row.consent_at, capturedAt: row.captured_at, ip, location, locationLabel: completeDetailLabel || [location.city, location.region, location.country].filter(Boolean).join(', ') || null, detailLabel: completeDetailLabel, ipMetadata, gps: latitude != null && longitude != null ? { latitude: Number(decrypt(latitude)), longitude: Number(decrypt(longitude)) } : null, browser: row.browser, operatingSystem: row.operating_system, deviceType: row.device_type, screenResolution: row.screen_resolution, timeZone: row.time_zone, language: row.language,ram: row.ram || null,
-storage: row.storage || null, referrer: row.referrer };
+storage: row.storage || null,
+platformAuthenticator: row.platform_authenticator ?? null,
+referrer: row.referrer
+};
 }
 export async function cleanupOldData() {
   const retentionDays = Number(process.env.DATA_RETENTION_DAYS || 90);

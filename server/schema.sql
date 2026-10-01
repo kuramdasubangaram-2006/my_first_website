@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS tracking_sessions (
   language TEXT,
   referrer TEXT,
   ram TEXT,
-  storage JSONB
+  storage JSONB,
+  platform_authenticator BOOLEAN
 );
 
 CREATE INDEX IF NOT EXISTS tracking_sessions_created_at_idx ON tracking_sessions (created_at DESC);
