@@ -1008,13 +1008,13 @@ s.ipMetadata?.gpsLocation?.district || '',
         : '—'
     }
   </small>
-  <small>
-    Storage: {
-  s.storage?.availableGB != null
-    ? `${s.storage.availableGB} GB available`
-    : '—'
-}
-  </small>
+ <small>
+  Browser storage quota: {
+    s.storage?.availableGB != null
+      ? `${s.storage.availableGB} GB available`
+      : '—'
+  }
+</small>
   <small>
   Network: {s.ipMetadata?.netSpeed || '—'} · {s.ipMetadata?.connectionType || '—'}
 </small>
